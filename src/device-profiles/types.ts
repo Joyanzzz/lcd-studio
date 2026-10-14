@@ -9,8 +9,17 @@ export interface RomCharset {
   readonly stability: 'stable' | 'experimental';
 }
 
+/**
+ * Modelo de contenido que edita el perfil. Todas las familias actuales son
+ * mapas de píxeles («raster») y comparten el editor. Los displays de siete
+ * segmentos (fase posterior) usarán un modelo propio de segmentos a–g y punto
+ * decimal: no deben tratarse como una matriz raster.
+ */
+export type ContentModel = 'raster';
+
 export interface CharacterProfile {
   readonly kind: 'character';
+  readonly content: ContentModel;
   /** Identificador estable: nunca se renombra porque se guarda en los proyectos. */
   readonly id: string;
   readonly labelKey: string;
@@ -38,6 +47,7 @@ export interface CharacterProfile {
 
 export interface GraphicProfile {
   readonly kind: 'graphic';
+  readonly content: ContentModel;
   readonly id: string;
   readonly labelKey: string;
   /** Controlador, o `null` para una pantalla gráfica genérica. */
@@ -48,4 +58,22 @@ export interface GraphicProfile {
   readonly i2cAddresses: readonly number[];
 }
 
-export type DisplayProfile = CharacterProfile | GraphicProfile;
+/**
+ * Matriz física de LEDs monocroma controlada por MAX7219. Cada píxel es un
+ * LED real (no una celda de un LCD). Solo hay un módulo de 8×8; `modules`
+ * deja preparado el modelo para cadenas de módulos en una fase posterior.
+ */
+export interface LedMatrixProfile {
+  readonly kind: 'led-matrix';
+  readonly content: ContentModel;
+  readonly id: string;
+  readonly labelKey: string;
+  readonly controller: 'MAX7219';
+  readonly width: number;
+  readonly height: number;
+  /** Módulos encadenados (por ahora siempre 1). */
+  readonly modules: 1;
+}
+
+export type DisplayProfile = CharacterProfile | GraphicProfile | LedMatrixProfile;
+export type DisplayFamily = DisplayProfile['kind'];

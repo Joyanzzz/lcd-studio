@@ -1,4 +1,5 @@
 import { isValidAppearance, type Appearance } from '../core/appearance.ts';
+import type { DeviceConfig } from '../core/device.ts';
 import { createFrame, isLoopMode, projectInvariantErrors, type Project } from '../core/project.ts';
 import { getProfile, isRomCharsetId } from '../device-profiles/index.ts';
 import { getExporter, inspectExport, runExport } from '../exporters/index.ts';
@@ -19,6 +20,7 @@ export function deserializeProject(s: SerializedProject): Project {
     appearance,
     loopMode: s.loopMode,
     romCharset: s.romCharset,
+    device: s.device as DeviceConfig,
     frames: s.frames.map((f) => createFrame(f.pixels, f.durationMs)),
   };
   if (projectInvariantErrors(project).length > 0) throw new Error('Proyecto no válido');

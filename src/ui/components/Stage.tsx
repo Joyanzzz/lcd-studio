@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { LIMITS } from '../../core/limits.ts';
 import { useEditor, usePreferences, useServices } from '../app-context.tsx';
 import { fitZoom, maxZoomFor } from '../canvas/layout.ts';
-import { useCharAnalysis, useProfile } from '../hooks.ts';
+import { useCommands } from '../commands.tsx';
+import { useCharAnalysis, useOverLimitFrames, useProfile } from '../hooks.ts';
 import { useI18n } from '../i18n/index.tsx';
 import { CanvasView } from './CanvasView.tsx';
+import { LimitNoticeBar } from './LimitNoticeBar.tsx';
 import { PixelIcon } from './PixelIcon.tsx';
 
-export function Stage() {
+export function Stage({ sideOpen, onToggleSide }: { sideOpen: boolean; onToggleSide: () => void }) {
   const { tk } = useI18n();
   const { store, preferences } = useServices();
   const prefs = usePreferences();
@@ -88,14 +90,16 @@ export function Stage() {
           <PixelIcon name="fit" />
           {tk('view.fit')}
         </button>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={prefs.grid}
-            onChange={(e) => preferences.update({ grid: e.target.checked })}
-          />
-          {tk('view.grid')}
-        </label>
+        {profile.kind === 'led-matrix' ? null : (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={prefs.grid}
+              onChange={(e) => preferences.update({ grid: e.target.checked })}
+            />
+            {tk('view.grid')}
+          </label>
+        )}
         <label className="check" title={tk('view.mirrorH.label')}>
           <input
             type="checkbox"
@@ -114,6 +118,19 @@ export function Stage() {
           />
           <span aria-hidden="true">{tk('view.mirrorV')}</span>
         </label>
+        <span className="spacer" />
+        <button
+          type="button"
+          className="btn"
+          aria-pressed={sideOpen}
+          aria-controls="side-panel"
+          onClick={onToggleSide}
+          title={tk('panels.show.tip')}
+          data-testid="side-toggle"
+        >
+          <PixelIcon name="settings" />
+          {tk('panels.show')}
+        </button>
         {profile.kind === 'character' ? (
           <label className="check">
             <input
@@ -125,6 +142,8 @@ export function Stage() {
           </label>
         ) : null}
       </div>
+      <RepairBanner />
+      <LimitNoticeBar />
       <div className="canvas-wrap" ref={wrap}>
         <div className="canvas-doc raised">
           <CanvasView zoom={Math.min(zoom, maxZoom)} />
@@ -147,6 +166,42 @@ export function Stage() {
   );
 }
 
+/** Proyecto antiguo con fotogramas por encima del límite: estado de reparación visible. */
+function RepairBanner() {
+  const { tk } = useI18n();
+  const { store } = useServices();
+  const { openDialog } = useCommands();
+  const frames = useOverLimitFrames();
+  if (frames.length === 0) return null;
+  return (
+    <div
+      className="repair-banner"
+      role="region"
+      aria-label={tk('repair.label')}
+      data-testid="repair-banner"
+    >
+      <PixelIcon name="warning" />
+      <p>
+        <strong>{tk('repair.title')}</strong>{' '}
+        {tk('repair.body', {
+          frames: frames.length,
+          list:
+            frames
+              .slice(0, 8)
+              .map((i) => i + 1)
+              .join(', ') + (frames.length > 8 ? '…' : ''),
+        })}
+      </p>
+      <button type="button" className="btn" onClick={() => store.selectFrame(frames[0]!)}>
+        {tk('repair.goto')}
+      </button>
+      <button type="button" className="btn" onClick={() => openDialog('cgramFit')}>
+        {tk('draw.cgramFit')}
+      </button>
+    </div>
+  );
+}
+
 function StatusBar() {
   const { tk } = useI18n();
   const profile = useProfile();
@@ -157,7 +212,7 @@ function StatusBar() {
   const hover = useEditor((s) => s.hover);
   const selection = useEditor((s) => s.selection);
   const analysis = useCharAnalysis();
-  const used = analysis ? Math.min(8, analysis.glyphs.length) : 0;
+  const used = analysis ? analysis.glyphs.length : 0;
   return (
     <div className="statusbar" role="group" aria-label={tk('status.label')} data-testid="statusbar">
       <span>
@@ -168,16 +223,8 @@ function StatusBar() {
       </span>
       <span>{tk('status.frame', { frame: current + 1, frames })}</span>
       {analysis ? (
-        <span
-          className={analysis.overflow.length > 0 ? 'error-text' : undefined}
-          data-testid="cgram-status"
-        >
-          {analysis.overflow.length > 0
-            ? tk('status.cgramOverflow', {
-                used: analysis.glyphs.length,
-                cells: analysis.overflow.length,
-              })
-            : tk('status.cgram', { used })}
+        <span className={used > 8 ? 'error-text' : undefined} data-testid="cgram-status">
+          {tk('status.cgram', { used })}
         </span>
       ) : null}
       {selection ? (

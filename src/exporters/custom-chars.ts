@@ -6,7 +6,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickEnum,
   pickString,
@@ -33,6 +32,7 @@ export const customCharsExporter: Exporter<CustomCharsOptions> = {
   labelKey: 'exporter.custom-chars',
   descriptionKey: 'exporter.custom-chars.description',
   category: 'data',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.h',
   orientation: 'cells',
@@ -54,7 +54,7 @@ export const customCharsExporter: Exporter<CustomCharsOptions> = {
   },
 
   fields() {
-    return [frameScopeField(), identifierField()];
+    return [identifierField()];
   },
 
   estimate(ctx, options) {

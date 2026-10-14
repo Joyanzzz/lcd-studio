@@ -41,6 +41,7 @@ export const spriteSheetExporter: Exporter<SpriteSheetOptions> = {
   labelKey: 'exporter.sprite-sheet',
   descriptionKey: 'exporter.sprite-sheet.description',
   category: 'image',
+  contents: ['animation'],
   stability: 'stable',
   extension: '.png',
   orientation: 'image',

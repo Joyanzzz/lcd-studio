@@ -14,8 +14,14 @@ export interface Preferences {
   readonly experimental: boolean;
   readonly exporter: string;
   readonly exportOptions: Readonly<Record<string, unknown>>;
+  /** Contenido de la última exportación. */
+  readonly exportContent: 'frame' | 'selection' | 'animation';
   readonly grid: boolean;
   readonly markCells: boolean;
+  /** Línea de tiempo: nivel de zoom 0–4, ajustar a la anchura y plegada. */
+  readonly timelineZoom: number;
+  readonly timelineFit: boolean;
+  readonly timelineCollapsed: boolean;
 }
 
 export const PREFERENCES_KEY = 'lcdstudio.preferences.v1';
@@ -32,8 +38,12 @@ export function defaultPreferences(locale: Locale): Preferences {
     experimental: false,
     exporter: '',
     exportOptions: {},
+    exportContent: 'animation',
     grid: true,
     markCells: true,
+    timelineZoom: 2,
+    timelineFit: true,
+    timelineCollapsed: false,
   };
 }
 
@@ -74,8 +84,24 @@ export function loadPreferences(
       !Array.isArray(r['exportOptions'])
         ? (r['exportOptions'] as Record<string, unknown>)
         : d.exportOptions,
+    exportContent:
+      r['exportContent'] === 'frame' ||
+      r['exportContent'] === 'selection' ||
+      r['exportContent'] === 'animation'
+        ? r['exportContent']
+        : d.exportContent,
     grid: typeof r['grid'] === 'boolean' ? r['grid'] : d.grid,
     markCells: typeof r['markCells'] === 'boolean' ? r['markCells'] : d.markCells,
+    timelineZoom:
+      typeof r['timelineZoom'] === 'number' &&
+      Number.isInteger(r['timelineZoom']) &&
+      r['timelineZoom'] >= 0 &&
+      r['timelineZoom'] <= 4
+        ? r['timelineZoom']
+        : d.timelineZoom,
+    timelineFit: typeof r['timelineFit'] === 'boolean' ? r['timelineFit'] : d.timelineFit,
+    timelineCollapsed:
+      typeof r['timelineCollapsed'] === 'boolean' ? r['timelineCollapsed'] : d.timelineCollapsed,
   };
   if (firstRun) savePreferences(storage, prefs);
   return prefs;

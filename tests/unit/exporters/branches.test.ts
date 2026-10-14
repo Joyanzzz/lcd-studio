@@ -52,6 +52,20 @@ describe('ramas defensivas de los exportadores', () => {
     }
   });
 
+  it('proyecto en reparación: código bloqueado, imágenes disponibles con aviso', () => {
+    const ctx = ctxFor(overflowProject());
+    const code = runExport(exporter('arduino-liquidcrystal'), ctx, {});
+    expect(code.files).toBeUndefined();
+    expect(code.diagnostics.some((d) => d.code === 'export.visualNotCertified')).toBe(false);
+    for (const id of ['png', 'gif', 'sprite-sheet', 'ascii', 'binary']) {
+      const out = runExport(exporter(id), ctx, {});
+      expect(out.files?.length).toBeGreaterThan(0);
+      expect(out.diagnostics).toContainEqual(
+        expect.objectContaining({ severity: 'warning', code: 'export.visualNotCertified' }),
+      );
+    }
+  });
+
   it('custom-chars anota los códigos ROM usados en cada fila', () => {
     const rowsA = [...a00GlyphRows7(0x41)!, 0];
     const p = makeProject('hd44780-16x2', [

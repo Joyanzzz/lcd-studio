@@ -6,6 +6,7 @@ import {
   type StoreEvent,
 } from '../../../src/ui/state/editor-store.ts';
 import { toAscii } from '../../helpers/bitmap.ts';
+import { charPixels, makeProject } from '../../helpers/projects.ts';
 
 const small = (): Project =>
   createProject({ name: 'x', profileId: 'graphic-custom', width: 6, height: 4 });
@@ -228,7 +229,7 @@ describe('almacén del editor: fotogramas, transformaciones y reproducción', ()
     const events: StoreEvent[] = [];
     s.onEvent((e) => events.push(e));
     s.setDuration(10);
-    expect(events[0]?.code).toBe('project.invalidDuration');
+    expect(events[0]).toMatchObject({ code: 'project.invalidDuration' });
     s.setDuration(500);
     s.newFrame();
     expect(s.currentFrame.durationMs).toBe(500);
@@ -326,14 +327,17 @@ describe('almacén del editor: proyecto e imagen', () => {
     s.setAppearance({ palette: 'amber' });
     s.rename('Nuevo');
     s.setLoopMode('pingpong');
-    expect(s.changeProfile('graphic-custom', { width: 10, height: 10 })).toBe(true);
+    expect(s.convertDisplay('graphic-custom', { width: 10, height: 10 }, 'crop-top-left')).toBe(
+      true,
+    );
     expect(s.getState().project).toMatchObject({
       name: 'Nuevo',
       width: 10,
       romCharset: 'none',
       loopMode: 'pingpong',
     });
-    expect(s.changeProfile('graphic-custom')).toBe(false);
+    expect(s.getState().undoLabel).toBe('history.convert');
+    expect(s.convertDisplay('graphic-custom', undefined, 'scale')).toBe(false);
     s.loadProject(small(), true);
     expect(s.getState()).toMatchObject({ canUndo: false, fileDirty: true, current: 0 });
     s.markFileSaved();
@@ -361,8 +365,204 @@ describe('almacén del editor: proyecto e imagen', () => {
     const events: StoreEvent[] = [];
     s.onEvent((e) => events.push(e));
     s.invert();
-    expect(events.map((e) => e.code)).toEqual(['toast.notUndoable']);
+    expect(events.filter((e) => e.type !== 'limit')).toMatchObject([{ code: 'toast.notUndoable' }]);
     expect(s.getState().canUndo).toBe(false);
     expect(s.currentFrame.pixels[0]).toBe(1);
+  });
+});
+
+describe('almacén del editor: ajuste a 8 caracteres', () => {
+  const dot = (i: number): number[] => {
+    const rows = new Array<number>(8).fill(0);
+    rows[Math.floor(i / 5)] = 0x10 >> (i % 5);
+    return rows;
+  };
+  const overflowing = (): Project => {
+    const cells = Object.fromEntries(
+      Array.from({ length: 12 }, (_, i) => [`0,${i}`, dot(i)] as const),
+    );
+    const bad = charPixels(16, 2, cells);
+    const ok = charPixels(16, 2, { '0,0': dot(0) });
+    return makeProject('hd44780-16x2', [{ pixels: ok }, { pixels: bad }, { pixels: bad.slice() }]);
+  };
+
+  it('ajusta el fotograma actual como una sola edición que se puede deshacer', () => {
+    const s = new EditorStore(overflowing());
+    const events: StoreEvent[] = [];
+    s.onEvent((e) => events.push(e));
+    s.selectFrame(1);
+    const before = s.getState().project;
+    expect(s.fitCgram('current')).toBe(true);
+    events.splice(0, events.length, ...events.filter((e) => e.type !== 'limit'));
+    const after = s.getState();
+    expect(after.undoLabel).toBe('history.fitCgram');
+    expect(after.project.frames[0]).toBe(before.frames[0]);
+    expect(after.project.frames[2]).toBe(before.frames[2]);
+    expect(after.project.frames[1]!.pixels).not.toEqual(before.frames[1]!.pixels);
+    expect(events).toEqual([
+      {
+        type: 'notice',
+        kind: 'success',
+        code: 'toast.cgramFitted',
+        params: { frames: 1, cells: 4 },
+      },
+    ]);
+    s.undo();
+    expect(s.getState().project).toBe(before);
+  });
+
+  it('con el ámbito «todos» ajusta cada fotograma que no cabe y avisa si no hay nada', () => {
+    const s = new EditorStore(overflowing());
+    const events: StoreEvent[] = [];
+    s.onEvent((e) => events.push(e));
+    expect(s.fitCgram('all')).toBe(true);
+    const notices = () => events.filter((e) => e.type !== 'limit');
+    expect(notices()[0]).toMatchObject({ params: { frames: 2, cells: 8 } });
+    expect(s.fitCgram('all')).toBe(false);
+    expect(notices()[1]).toEqual({ type: 'notice', kind: 'info', code: 'toast.cgramFitNothing' });
+    s.undo();
+    expect(s.getState().canUndo).toBe(false);
+  });
+});
+
+describe('almacén del editor: límite de 8 caracteres propios', () => {
+  /** Glifo de un solo píxel en la posición i (0–24). */
+  const dot = (i: number): number[] => {
+    const rows = new Array<number>(8).fill(0);
+    rows[Math.floor(i / 5)] = 0x10 >> (i % 5);
+    return rows;
+  };
+  /** 8 patrones distintos en las celdas (0,0)…(0,7); el patrón 0 se repite en (1,0). */
+  const eight = (): Project =>
+    makeProject('hd44780-16x2', [
+      {
+        pixels: charPixels(16, 2, {
+          ...Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`0,${i}`, dot(i)] as const)),
+          '1,0': dot(0),
+        }),
+      },
+    ]);
+  const watch = (s: EditorStore) => {
+    const events: StoreEvent[] = [];
+    s.onEvent((e) => events.push(e));
+    return () =>
+      events.filter((e) => e.type === 'limit').map((e) => (e as { phase: string }).phase);
+  };
+  const snapshot = (s: EditorStore) => {
+    const st = s.getState();
+    return {
+      project: st.project,
+      revision: st.revision,
+      fileDirty: st.fileDirty,
+      canUndo: st.canUndo,
+    };
+  };
+
+  it('un trazo que crearía un noveno patrón se rechaza entero al soltar', () => {
+    const s = new EditorStore(eight());
+    const phases = watch(s);
+    const before = snapshot(s);
+    s.pointerDown({ x: 60, y: 2 }); // celda vacía (0,12)
+    expect(s.liveBlocked).toBe(true);
+    s.pointerMove({ x: 62, y: 2 });
+    s.pointerMove({ x: 63, y: 4 });
+    expect(phases()).toEqual(['active']); // un solo aviso durante el intento
+    s.pointerUp();
+    expect(phases()).toEqual(['active', 'ended']);
+    expect(snapshot(s)).toEqual(before);
+    expect(s.live).toBeNull();
+  });
+
+  it('repetir un patrón existente funciona con la paleta y con pegar', () => {
+    const s = new EditorStore(eight());
+    const phases = watch(s);
+    s.setPatternBrush(Uint8Array.from(dot(5)));
+    expect(s.getState().tool).toBe('pattern');
+    s.pointerDown({ x: 61, y: 3 }); // celda (0,12)
+    expect(s.getState().canUndo).toBe(true);
+    expect(s.getState().undoLabel).toBe('history.pattern');
+    s.setTool('select');
+    s.pointerDown({ x: 10, y: 0 });
+    s.pointerMove({ x: 14, y: 7 }); // selecciona la celda (0,2)
+    s.pointerUp();
+    expect(s.copy()).toBe(true);
+    s.pointerDown({ x: 50, y: 8 });
+    s.pointerUp();
+    s.deselect();
+    s.selectAll();
+    s.deselect();
+    expect(phases()).not.toContain('active');
+    expect(s.paste()).toBe(true);
+    expect(phases()).not.toContain('active');
+  });
+
+  it('editar una repetición de un patrón: copia rechazada (noveno patrón), global permitida', () => {
+    const s = new EditorStore(eight());
+    const phases = watch(s);
+    const before = snapshot(s);
+    // (1,0) repite el patrón 0: añadirle un píxel crea un patrón nuevo en modo copia.
+    s.setTool('pencil');
+    s.pointerDown({ x: 2, y: 9 });
+    s.pointerUp();
+    expect(phases()).toEqual(['active', 'ended']);
+    expect(snapshot(s)).toEqual(before);
+    s.setSharedEdit('global');
+    s.pointerDown({ x: 2, y: 9 });
+    s.pointerUp();
+    const px = s.currentFrame.pixels;
+    expect(px[0 * 80 + 2 + 1 * 80]).toBe(1); // celda (0,0) también cambió (fila 1, x=2)
+    expect(px[9 * 80 + 2]).toBe(1);
+    expect(s.getState().canUndo).toBe(true);
+  });
+
+  it('texto, transformación, importación y vista previa de imagen pasan por la misma validación', () => {
+    const s = new EditorStore(eight());
+    const phases = watch(s);
+    const before = snapshot(s);
+    s.setTool('text');
+    s.setText({ value: 'Hi' });
+    s.pointerDown({ x: 60, y: 8 });
+    s.setTool('select');
+    s.selectAll();
+    s.invert();
+    s.importSequence(
+      [
+        {
+          pixels: new Uint8Array(80 * 16).map((_, i) =>
+            (Math.imul(i, 2654435761) >>> 0) % 3 === 0 ? 1 : 0,
+          ),
+          durationMs: 100,
+        },
+      ],
+      false,
+    );
+    s.applyPreview(false);
+    expect(snapshot(s)).toEqual(before);
+    expect(phases().filter((p) => p === 'ended').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('un proyecto en reparación admite ediciones que no aumentan los patrones', () => {
+    const cells = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [`0,${i}`, dot(i)] as const),
+    );
+    const s = new EditorStore(makeProject('hd44780-16x2', [{ pixels: charPixels(16, 2, cells) }]));
+    const phases = watch(s);
+    s.setTool('eraser');
+    s.pointerDown({ x: 0, y: 0 }); // borra el patrón 0 → 9 patrones
+    s.pointerUp();
+    expect(s.getState().canUndo).toBe(true);
+    s.setTool('pencil');
+    s.pointerDown({ x: 70, y: 3 }); // patrón nuevo → 10 > 9: rechazado
+    s.pointerUp();
+    expect(phases()).toContain('ended');
+    expect(s.getState().undoLabel).toBe('history.erase');
+  });
+
+  it('cambiar de proyecto limpia el aviso', () => {
+    const s = new EditorStore(eight());
+    const phases = watch(s);
+    s.loadProject(small());
+    expect(phases()).toEqual(['cleared']);
+    expect(s.getState().tool).toBe('pencil');
   });
 });

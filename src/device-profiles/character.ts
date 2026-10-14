@@ -23,6 +23,7 @@ function hd44780(
 ): CharacterProfile {
   return Object.freeze({
     kind: 'character',
+    content: 'raster',
     id: `hd44780-${columns}x${rows}`,
     labelKey: `profile.hd44780-${columns}x${rows}`,
     controller: 'HD44780',

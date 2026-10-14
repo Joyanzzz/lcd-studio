@@ -14,7 +14,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickBool,
   pickEnum,
@@ -56,6 +55,15 @@ export function canSketchSsd1306(profile: GraphicProfile): boolean {
   return profile.controller === 'SSD1306' && profile.fixedSize !== null;
 }
 
+/**
+ * El boceto completo usa SSD1306 por I²C: solo se ofrece si el proyecto no
+ * tiene conexión configurada o si es I²C (con SPI se generan solo las tablas).
+ */
+export function canSketch(ctx: ExportContext): boolean {
+  const connection = ctx.project.device.connection;
+  return canSketchSsd1306(graphic(ctx)) && (connection === null || connection === 'i2c');
+}
+
 export function i2cAddressField(profile: GraphicProfile): OptionField {
   return {
     kind: 'select',
@@ -85,6 +93,7 @@ export const adafruitGfxExporter: Exporter<AdafruitOptions> = {
   labelKey: 'exporter.adafruit-gfx',
   descriptionKey: 'exporter.adafruit-gfx.description',
   category: 'code',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.h',
   orientation: 'rows',
@@ -98,7 +107,7 @@ export const adafruitGfxExporter: Exporter<AdafruitOptions> = {
       frames: 'all',
       board: 'arduino-uno',
       identifier: defaultIdentifier(ctx),
-      sketch: canSketchSsd1306(profile),
+      sketch: canSketch(ctx),
       i2cAddress: profile.i2cAddresses[0] ?? 0x3c,
     };
   },
@@ -112,14 +121,14 @@ export const adafruitGfxExporter: Exporter<AdafruitOptions> = {
       frames: pickEnum(r['frames'], FRAME_SCOPES, d.frames),
       board: resolveBoard(r['board']).id,
       identifier: pickString(r['identifier'], LIMITS.nameMaxLength * 2, d.identifier),
-      sketch: canSketchSsd1306(profile) && pickBool(r['sketch'], d.sketch),
+      sketch: canSketch(ctx) && pickBool(r['sketch'], d.sketch),
       i2cAddress: profile.i2cAddresses.includes(address) ? address : d.i2cAddress,
     };
   },
 
   fields(ctx, options) {
     const profile = graphic(ctx);
-    const fields: OptionField[] = [frameScopeField(), boardField(), identifierField()];
+    const fields: OptionField[] = [boardField(), identifierField()];
     fields.push({
       kind: 'boolean',
       key: 'progmem',
@@ -127,7 +136,7 @@ export const adafruitGfxExporter: Exporter<AdafruitOptions> = {
       locked: true,
       hintKey: 'export.hint.progmemRequiredGfx',
     });
-    if (canSketchSsd1306(profile)) {
+    if (canSketch(ctx)) {
       fields.push({ kind: 'boolean', key: 'sketch', labelKey: 'export.option.sketchSsd1306' });
       if (options.sketch) fields.push(i2cAddressField(profile));
     }

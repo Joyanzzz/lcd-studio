@@ -47,7 +47,7 @@ function runtimeKeys(): Set<string> {
           [
             {
               pixels: new Uint8Array(
-                profile.kind === 'character'
+                profile.kind !== 'graphic'
                   ? profile.width * profile.height
                   : 'width' in size
                     ? 128
@@ -179,6 +179,8 @@ describe('diccionarios', () => {
       'status.size',
       'status.charSize',
       'status.cgram',
+      'panels.show',
+      'timeline.ms',
       'image.source',
       'image.fit.original',
       'image.rotation.value',
@@ -237,7 +239,7 @@ describe.each(LOCALES)('traductor (%s)', (locale) => {
   it('muestra literales y devuelve la clave si falta', () => {
     expect(tr.t('literal:0x3C')).toBe('0x3C');
     expect(tr.t('no.existe')).toBe('no.existe');
-    expect(tr.has('toolbar.new')).toBe(true);
+    expect(tr.has('menu.file')).toBe(true);
     expect(tr.t('toolbar.undo.tip')).toContain('{action}');
     expect(tr.formatNumber(1234.5)).toBe(locale === 'es' ? '1234,5' : '1,234.5');
   });

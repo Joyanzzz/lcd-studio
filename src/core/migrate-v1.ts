@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getProfile } from '../device-profiles/index.ts';
 import { CUSTOM_PALETTE_ID, normalizeHexColor, type Appearance } from './appearance.ts';
+import { defaultDevice } from './device.ts';
 import { decodeBase64 } from './base64.ts';
 import { unpackBits } from './bitpack.ts';
 import { fail, isAppError, issue, ok, type Issue, type Result } from './errors.ts';
@@ -219,6 +220,7 @@ export function migrateV1(
     appearance,
     loopMode: 'loop',
     romCharset: 'none',
+    device: defaultDevice(getProfile(profileId)!),
     frames: Object.freeze(frames),
   });
   const errors = projectInvariantErrors(project);

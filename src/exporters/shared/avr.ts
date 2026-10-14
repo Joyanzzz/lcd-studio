@@ -14,7 +14,12 @@ import type { Diagnostic, OptionField } from '../types.ts';
  */
 
 export type LibraryId =
-  'none' | 'liquidcrystal' | 'liquidcrystal-i2c' | 'adafruit-ssd1306' | 'u8g2-page';
+  | 'none'
+  | 'liquidcrystal'
+  | 'liquidcrystal-i2c'
+  | 'adafruit-ssd1306'
+  | 'u8g2-page'
+  | 'max7219-shiftout';
 
 interface Footprint {
   readonly flash: Readonly<Record<'ATmega328P' | 'ATmega2560', number>>;
@@ -28,6 +33,9 @@ const FOOTPRINTS: Readonly<Record<LibraryId, Footprint>> = {
   'liquidcrystal-i2c': { flash: { ATmega328P: 3150, ATmega2560: 3810 }, ram: 257 },
   'adafruit-ssd1306': { flash: { ATmega328P: 13128, ATmega2560: 13872 }, ram: 344 },
   'u8g2-page': { flash: { ATmega328P: 8324, ATmega2560: 9044 }, ram: 660 },
+  // MAX7219 con shiftOut()/digitalWrite() del núcleo (sin bibliotecas). Medido con
+  // el boceto generado de 20 fotogramas: Uno 1500 B y Mega 2560 2178 B de flash.
+  'max7219-shiftout': { flash: { ATmega328P: 600, ATmega2560: 1150 }, ram: 9 },
 };
 
 /** Código de reproducción generado (bucle, temporización, lecturas de tablas). */

@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { resolveColors } from '../../core/appearance.ts';
+import { CGRAM_SLOTS, glyphKey } from '../../core/charlcd.ts';
+import { patternUses } from '../../core/constraints.ts';
 import { unsupportedTextChars } from '../../engine/text.ts';
 import { useEditor, useServices } from '../app-context.tsx';
 import { useCharAnalysis, useProfile } from '../hooks.ts';
 import { useI18n } from '../i18n/index.tsx';
+import { useCommands } from '../commands.tsx';
 import { PixelIcon } from './PixelIcon.tsx';
 
 export function DrawPanel() {
@@ -201,15 +204,20 @@ export function DrawPanel() {
 
 function CgramInfo() {
   const { tk } = useI18n();
+  const { store } = useServices();
+  const { openDialog } = useCommands();
   const analysis = useCharAnalysis();
   const appearance = useEditor((s) => s.project.appearance);
+  const brush = useEditor((s) => s.patternBrush);
+  const tool = useEditor((s) => s.tool);
+  const sharedEdit = useEditor((s) => s.sharedEdit);
   const refs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const ids = useId();
   useEffect(() => {
     if (!analysis) return;
     const colors = resolveColors(appearance);
     refs.current.forEach((canvas, slot) => {
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas?.getContext('2d');
       if (!ctx) return;
       const glyph = analysis.glyphs[slot];
       ctx.fillStyle = colors.off;
@@ -221,37 +229,92 @@ function CgramInfo() {
     });
   }, [analysis, appearance]);
   if (!analysis) return null;
-  const used = Math.min(8, analysis.glyphs.length);
+  const total = analysis.glyphs.length;
+  const uses = patternUses(analysis);
+  const full = total >= CGRAM_SLOTS;
+  const over = total > CGRAM_SLOTS;
+  const brushKey = brush ? glyphKey(brush) : null;
   return (
     <fieldset className="group">
       <legend>{tk('draw.cgramGroup')}</legend>
-      <p
-        className={analysis.overflow.length > 0 ? 'error-text' : 'ok-text'}
-        data-testid="cgram-used"
-      >
-        {tk('draw.cgramUsed', { used: analysis.glyphs.length > 8 ? analysis.glyphs.length : used })}
+      <p className={over ? 'error-text' : full ? 'warn-text' : 'ok-text'} data-testid="cgram-used">
+        {tk('draw.cgramUsed', { used: total })}
       </p>
-      {analysis.overflow.length > 0 ? (
-        <p className="error-text" role="alert">
-          {tk('draw.cgramOverflow', { cells: analysis.overflow.length })}
+      <div className="cgram-slots" role="group" aria-label={tk('draw.cgramSlots')}>
+        {Array.from({ length: CGRAM_SLOTS }, (_, slot) => {
+          const glyph = analysis.glyphs[slot];
+          const selected =
+            glyph !== undefined && tool === 'pattern' && brushKey === glyphKey(glyph);
+          return (
+            <button
+              key={slot}
+              type="button"
+              className="cgram-slot btn"
+              data-testid="cgram-slot"
+              disabled={!glyph}
+              aria-pressed={selected}
+              aria-label={
+                glyph
+                  ? tk('draw.cgramSlot', { slot, uses: uses[slot] ?? 0 })
+                  : tk('draw.cgramSlotEmpty', { slot })
+              }
+              title={glyph ? tk('draw.cgramSlot.tip') : undefined}
+              onClick={() => glyph && store.setPatternBrush(glyph)}
+            >
+              <canvas
+                width={5}
+                height={8}
+                ref={(el) => {
+                  refs.current[slot] = el;
+                }}
+                aria-hidden="true"
+              />
+              <span className="cgram-uses" aria-hidden="true">
+                {glyph ? `×${uses[slot]}` : '—'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {full ? (
+        <p className={over ? 'error-text' : 'warn-text'} id={`${ids}-full`}>
+          {over ? tk('draw.cgramOver', { extra: total - CGRAM_SLOTS }) : tk('draw.cgramFull')}
         </p>
       ) : null}
-      <div className="cgram-slots">
-        {Array.from({ length: 8 }, (_, slot) => (
-          <canvas
-            key={slot}
-            width={5}
-            height={8}
-            ref={(el) => {
-              refs.current[slot] = el;
-            }}
-            role="img"
-            aria-label={
-              slot < used ? tk('draw.cgramSlot', { slot }) : tk('draw.cgramSlotEmpty', { slot })
-            }
+      <fieldset className="group inner">
+        <legend>{tk('draw.sharedEdit')}</legend>
+        <label className="check">
+          <input
+            type="radio"
+            name={`${ids}-shared`}
+            checked={sharedEdit === 'copy'}
+            onChange={() => store.setSharedEdit('copy')}
+            data-testid="shared-copy"
           />
-        ))}
-      </div>
+          {tk('draw.sharedEdit.copy')}
+        </label>
+        <label className="check">
+          <input
+            type="radio"
+            name={`${ids}-shared`}
+            checked={sharedEdit === 'global'}
+            onChange={() => store.setSharedEdit('global')}
+            data-testid="shared-global"
+          />
+          {tk('draw.sharedEdit.global')}
+        </label>
+        <p className="hint">{tk('draw.sharedEdit.hint')}</p>
+      </fieldset>
+      {over ? (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => openDialog('cgramFit')}
+          data-testid="cgram-fit-open"
+        >
+          {tk('draw.cgramFit')}
+        </button>
+      ) : null}
       <p className="hint">{tk('draw.cgramHint')}</p>
     </fieldset>
   );

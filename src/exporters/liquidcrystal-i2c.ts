@@ -14,7 +14,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickBool,
   pickEnum,
@@ -52,6 +51,7 @@ export const liquidCrystalI2cExporter: Exporter<LiquidCrystalI2cOptions> = {
   labelKey: 'exporter.arduino-liquidcrystal-i2c',
   descriptionKey: 'exporter.arduino-liquidcrystal-i2c.description',
   category: 'code',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.ino',
   orientation: 'cells',
@@ -83,7 +83,6 @@ export const liquidCrystalI2cExporter: Exporter<LiquidCrystalI2cOptions> = {
 
   fields() {
     return [
-      frameScopeField(),
       boardField(),
       identifierField(),
       {

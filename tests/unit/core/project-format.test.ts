@@ -15,6 +15,7 @@ import {
   replaceFramePixels,
   setAppearance,
   setLoopMode,
+  setDevice,
   setRomCharset,
   type Project,
 } from '../../../src/core/project.ts';
@@ -38,6 +39,7 @@ function sample(): Project {
   return p;
 }
 
+/** Documento actual (v3) del proyecto, para manipularlo en las pruebas. */
 function v2Doc(p: Project = sample()): Record<string, unknown> {
   return JSON.parse(new TextDecoder().decode(serializeProject(p, GEN))) as Record<string, unknown>;
 }
@@ -46,7 +48,7 @@ function parse(doc: unknown) {
   return parseProjectFile(toBytes(doc));
 }
 
-describe('formato v2', () => {
+describe('formato v3', () => {
   it('ida y vuelta conserva todo el proyecto', () => {
     const p = sample();
     const result = parseProjectFile(serializeProject(p, GEN));
@@ -68,7 +70,7 @@ describe('formato v2', () => {
     const a = serializeProject(p, GEN);
     expect(serializeProject(p, GEN)).toEqual(a);
     const text = new TextDecoder().decode(a);
-    expect(text.startsWith('{\n  "format": "lcd-studio-project",\n  "schemaVersion": 2')).toBe(
+    expect(text.startsWith('{\n  "format": "lcd-studio-project",\n  "schemaVersion": 3')).toBe(
       true,
     );
     expect(text.endsWith('}\n')).toBe(true);
@@ -92,7 +94,33 @@ describe('formato v2', () => {
   });
 
   const mutations: [string, (d: Record<string, unknown>) => void, RegExp][] = [
-    ['versión futura', (d) => (d['schemaVersion'] = 3), /newerVersion/],
+    ['versión futura', (d) => (d['schemaVersion'] = 4), /newerVersion/],
+    ['sin dispositivo (v3)', (d) => delete d['device'], /schema/],
+    [
+      'conexión que el perfil no admite',
+      (d) => (d['device'] = { connection: 'i2c', codeTarget: null, matrix: null }),
+      /device.invalidConnection/,
+    ],
+    [
+      'destino de código incompatible con la conexión',
+      (d) =>
+        (d['device'] = {
+          connection: 'hd44780-8bit',
+          codeTarget: 'arduino-liquidcrystal',
+          matrix: null,
+        }),
+      /device.invalidTarget/,
+    ],
+    [
+      'configuración de matriz en un LCD',
+      (d) =>
+        (d['device'] = {
+          connection: null,
+          codeTarget: null,
+          matrix: { rotation: 0, wiring: 'rows-msb-left', brightness: 3 },
+        }),
+      /device.invalidMatrix/,
+    ],
     ['versión desconocida', (d) => (d['schemaVersion'] = 1.5), /unknownVersion/],
     ['formato desconocido', (d) => (d['format'] = 'otro'), /unknownFormat/],
     ['clave extra', (d) => (d['extra'] = 1), /schema/],
@@ -199,9 +227,51 @@ describe('formato v2', () => {
     expect(parseProjectJson('texto')).toMatchObject({ ok: false });
   });
 
-  it('declara la versión de esquema 2', () => {
-    expect(SCHEMA_VERSION).toBe(2);
-    expect(v2Doc()['schemaVersion']).toBe(2);
+  it('declara la versión de esquema 3', () => {
+    expect(SCHEMA_VERSION).toBe(3);
+    expect(v2Doc()['schemaVersion']).toBe(3);
+  });
+
+  it('guarda y restaura la configuración del dispositivo', () => {
+    const p = setDevice(sample(), {
+      connection: 'hd44780-4bit',
+      codeTarget: 'arduino-liquidcrystal',
+      matrix: null,
+    });
+    const r = parseProjectFile(serializeProject(p, GEN));
+    expect(r.ok && r.value.device).toEqual(p.device);
+    const led = setDevice(createProject({ name: 'm', profileId: 'max7219-8x8' }), {
+      connection: 'max7219-spi',
+      codeTarget: 'arduino-max7219',
+      matrix: { rotation: 270, wiring: 'cols-lsb-top', brightness: 15 },
+    });
+    const r2 = parseProjectFile(serializeProject(led, GEN));
+    expect(r2.ok && r2.value.device).toEqual(led.device);
+  });
+});
+
+describe('migración v2 → v3', () => {
+  it('un proyecto v2 se abre completo con el dispositivo sin configurar', () => {
+    const p = sample();
+    const doc = v2Doc(p);
+    delete doc['device'];
+    doc['schemaVersion'] = 2;
+    const r = parse(doc);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.warnings.map((w) => w.code)).toEqual(['migration.fromV2']);
+    expect(r.value.device).toEqual({ connection: null, codeTarget: null, matrix: null });
+    expect(r.value.romCharset).toBe('hd44780-a00');
+    expect(r.value.appearance).toEqual(p.appearance);
+    r.value.frames.forEach((f, i) => expect(f.pixels).toEqual(p.frames[i]!.pixels));
+    // Al volver a guardar se escribe en v3.
+    expect(v2Doc(r.value)['schemaVersion']).toBe(3);
+  });
+
+  it('un v2 con la clave device se rechaza (no pertenece a ese esquema)', () => {
+    const doc = v2Doc();
+    doc['schemaVersion'] = 2;
+    expect(parse(doc).ok).toBe(false);
   });
 });
 

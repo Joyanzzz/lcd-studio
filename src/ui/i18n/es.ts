@@ -24,26 +24,32 @@ export const es = {
 
   // Barra de herramientas principal
   'toolbar.label': 'Barra de herramientas principal',
-  'toolbar.new': 'Nuevo',
-  'toolbar.new.tip': 'Nuevo proyecto (Ctrl+Alt+N)',
-  'toolbar.open': 'Abrir',
-  'toolbar.open.tip': 'Abrir un proyecto .lcdstudio.json (Ctrl+O)',
-  'toolbar.save': 'Guardar',
-  'toolbar.save.tip.web': 'Descargar una copia del proyecto (Ctrl+S)',
-  'toolbar.save.tip.desktop': 'Guardar el proyecto (Ctrl+S)',
-  'toolbar.saveAs': 'Guardar como',
-  'toolbar.saveAs.tip': 'Guardar el proyecto en otro archivo (Ctrl+Mayús+S)',
   'toolbar.undo': 'Deshacer',
   'toolbar.undo.tip': 'Deshacer: {action} (Ctrl+Z)',
   'toolbar.undo.none': 'Nada que deshacer',
   'toolbar.redo': 'Rehacer',
   'toolbar.redo.tip': 'Rehacer: {action} (Ctrl+Y)',
   'toolbar.redo.none': 'Nada que rehacer',
-  'toolbar.settings': 'Preferencias',
-  'toolbar.help': 'Ayuda',
   'toolbar.theme.toDark': 'Tema oscuro',
   'toolbar.theme.toLight': 'Tema claro',
   'toolbar.language': 'Idioma',
+  'menu.label': 'Menú principal',
+  'menu.file': 'Archivo',
+  'menu.file.new': 'Nuevo proyecto…',
+  'menu.file.open': 'Abrir proyecto…',
+  'menu.file.save': 'Guardar proyecto',
+  'menu.file.download': 'Guardar proyecto (descargar copia)',
+  'menu.file.saveAs': 'Guardar proyecto como…',
+  'menu.file.preferences': 'Preferencias…',
+  'menu.edit': 'Editar',
+  'menu.project': 'Proyecto',
+  'menu.project.settings': 'Configuración del proyecto…',
+  'menu.project.convert': 'Convertir pantalla…',
+  'menu.project.diagnostics': 'Patrones de diagnóstico…',
+  'menu.export': 'Exportar',
+  'menu.export.wizard': 'Exportar…',
+  'menu.help': 'Ayuda',
+  'menu.help.shortcuts': 'Ayuda y atajos de teclado…',
 
   // Idiomas
   'language.es': 'Español',
@@ -59,6 +65,7 @@ export const es = {
   'tool.rect': 'Rectángulo',
   'tool.ellipse': 'Elipse',
   'tool.text': 'Texto',
+  'tool.pattern': 'Colocar patrón',
   'tool.withKey': '{tool} ({key})',
   'tools.filled': 'Formas rellenas',
   'tools.swatch': 'Clic izquierdo enciende, clic derecho apaga',
@@ -76,7 +83,7 @@ export const es = {
   'view.mirrorH.label': 'Simetría horizontal',
   'view.mirrorV': 'Simetría ↕',
   'view.mirrorV.label': 'Simetría vertical',
-  'view.markCells': 'Marcar celdas incompatibles',
+  'view.markCells': 'Atenuar celdas no disponibles',
 
   // Lienzo
   'canvas.label': 'Lienzo de {width} × {height} píxeles, fotograma {frame} de {frames}',
@@ -97,18 +104,14 @@ export const es = {
   'status.cursor': 'x {x}  y {y}',
   'status.selection': 'Selección {width} × {height}',
   'status.cgram': 'CGRAM {used}/8',
-  'status.cgramOverflow': 'CGRAM {used}/8 — {cells} celdas no caben',
 
   // Paneles
   'panels.label': 'Paneles',
   'panel.draw': 'Dibujo',
   'panel.image': 'Imagen',
-  'panel.export': 'Exportar',
-  'panel.project': 'Proyecto',
-  'mobile.tools': 'Herramientas',
-  'mobile.panels': 'Paneles',
-  'mobile.timeline': 'Fotogramas',
-  'mobile.nav': 'Secciones del editor',
+  'panels.hide': 'Ocultar panel lateral',
+  'panels.show': 'Panel',
+  'panels.show.tip': 'Mostrar u ocultar el panel Dibujo/Imagen',
 
   // Panel de dibujo
   'draw.textGroup': 'Sello de texto',
@@ -139,23 +142,43 @@ export const es = {
   'draw.selectAll': 'Seleccionar todo',
   'draw.deselect': 'Quitar selección',
   'draw.cgramGroup': 'Caracteres propios (CGRAM)',
-  'draw.cgramUsed': 'Usados en este fotograma: {used} de 8',
-  'draw.cgramOverflow': '{cells} celdas no caben y están marcadas en el lienzo.',
+  'draw.cgramUsed': 'Patrones propios en este fotograma: {used} de 8',
+  'draw.cgramSlots': 'Ranuras CGRAM del fotograma',
+  'draw.cgramFull':
+    'Las 8 ranuras están ocupadas. Las celdas atenuadas necesitarían un patrón nuevo. Puedes repetir un patrón (elígelo aquí y usa «Colocar patrón», o copia y pega), editar una celda cuyo patrón no se repite o cambiar todas las apariciones de un patrón.',
+  'draw.cgramOver':
+    'Este fotograma usa {extra} patrón(es) más de los que caben (proyecto en reparación). Puedes editar sin añadir patrones nuevos hasta reducirlos a 8.',
+  'draw.cgramSlot.tip': 'Elegir este patrón para la herramienta «Colocar patrón»',
+  'draw.sharedEdit': 'Al editar un patrón repetido',
+  'draw.sharedEdit.copy': 'Crear una copia independiente (necesita una ranura libre)',
+  'draw.sharedEdit.global': 'Cambiar todas sus apariciones en el fotograma',
+  'draw.sharedEdit.hint':
+    'Mientras dibujas, el lienzo muestra el resultado. Si una edición necesitara un noveno patrón, no se aplica nada.',
   'draw.cgramHint':
-    'Un HD44780 guarda 8 caracteres propios. Las celdas vacías son espacios y las celdas iguales comparten ranura.',
-  'draw.cgramSlot': 'Ranura {slot}',
+    'Un HD44780 guarda 8 caracteres propios por fotograma. Las celdas vacías son espacios, las letras de la ROM elegida no ocupan ranura y las celdas idénticas comparten una.',
+  'draw.cgramFit': 'Ajustar a 8 caracteres…',
+  'draw.cgramSlot': 'Ranura {slot}: usada en {uses} celda(s). Elegir para colocar',
   'draw.cgramSlotEmpty': 'Ranura {slot}: libre',
+  'limit.title': 'Límite de 8 caracteres propios alcanzado.',
+  'limit.body':
+    'La operación crearía un patrón nuevo y no se aplicó; el dibujo no cambió. Repite un patrón existente o edita una celda cuyo patrón no se repite.',
+  'limit.dismiss': 'Cerrar aviso',
+  'repair.label': 'Proyecto en reparación',
+  'repair.title': 'Proyecto en reparación.',
+  'repair.body':
+    '{frames} fotograma(s) usan más de 8 caracteres propios ({list}; borde naranja discontinuo). Puedes editarlos sin añadir patrones y guardar el proyecto. La exportación de código está bloqueada hasta resolverlo; las imágenes no certifican compatibilidad.',
+  'repair.goto': 'Ir al primero',
+  'repair.opened':
+    'Proyecto abierto en reparación: {frames} fotograma(s) superan los 8 caracteres propios. No se ha descartado nada.',
 
   // Panel de proyecto
   'project.group.display': 'Pantalla',
   'project.group.appearance': 'Apariencia',
   'project.group.playback': 'Reproducción',
+  'project.group.device': 'Conexión y generación de código',
   'project.name': 'Nombre',
-  'project.profile': 'Perfil',
   'project.width': 'Ancho',
   'project.height': 'Alto',
-  'project.applySize': 'Aplicar tamaño',
-  'project.changeProfile': 'Cambiar perfil',
   'project.rom': 'Mapa ROM',
   'project.rom.hint':
     'Con "Ninguno", solo las celdas vacías usan la ROM (espacio). La tabla A00 aún no se ha verificado en hardware.',
@@ -197,6 +220,17 @@ export const es = {
   'timeline.onionOpacity': 'Opacidad',
   'timeline.reorderHint': 'Arrastra los fotogramas o usa Alt + flechas para reordenarlos.',
   'timeline.count': '{frames} de {max} fotogramas',
+  'timeline.view': 'Vista de la línea de tiempo',
+  'timeline.zoomOut': 'Miniaturas más pequeñas',
+  'timeline.zoomIn': 'Miniaturas más grandes',
+  'timeline.fit': 'Ajustar',
+  'timeline.fit.tip':
+    'Reducir las miniaturas para ver más fotogramas (con un tamaño mínimo legible; si no caben, se desplaza)',
+  'timeline.collapse': 'Plegar',
+  'timeline.expand': 'Desplegar',
+  'timeline.ms': '{ms} ms',
+  'timeline.uniformHint':
+    'Todas las miniaturas tienen el mismo ancho; la duración de cada fotograma se indica en milisegundos.',
 
   // Panel de imagen
   'image.drop': 'Arrastra, pega (Ctrl+V) o elige imágenes PNG, JPEG, WebP o GIF',
@@ -258,10 +292,40 @@ export const es = {
   'image.reduced': 'La imagen se redujo a {width} × {height} px para trabajar con ella.',
 
   // Panel de exportación
-  'export.format': 'Formato',
-  'export.group.code': 'Código y datos',
   'export.group.image': 'Imágenes',
   'export.experimentalBadge': 'Experimental',
+  'export.step.content': 'Contenido',
+  'export.step.format': 'Tipo y formato',
+  'export.step.options': 'Opciones',
+  'export.step.result': 'Validación y resultado',
+  'export.content.frame': 'Fotograma actual',
+  'export.content.frame.hint': 'Exporta solo el fotograma {frame}.',
+  'export.content.selection': 'Selección',
+  'export.content.selection.hint':
+    'Exporta el rectángulo seleccionado ({width} × {height} px) del fotograma actual como imagen o datos.',
+  'export.content.animation': 'Animación completa',
+  'export.content.animation.hint': 'Exporta los {frames} fotogramas con sus duraciones.',
+  'export.content.noSelection':
+    'No hay selección: usa la herramienta Selección para marcar un rectángulo.',
+  'export.content.oneFrame': 'El proyecto tiene un solo fotograma.',
+  'export.group.image.hint': 'Archivos de imagen para ver o compartir; no son código.',
+  'export.group.data': 'Datos de mapa de bits',
+  'export.group.data.hint':
+    'Los píxeles como bytes (arreglo en C, archivo binario o texto) con el orden de bits indicado. «Mapa de bits» aquí NO es un archivo .BMP.',
+  'export.group.code': 'Código',
+  'export.group.code.hint': 'Solo los destinos que admite la pantalla y la conexión del proyecto.',
+  'export.reason.needsFullDisplay':
+    'No disponible para una selección: necesita la pantalla completa.',
+  'export.reason.needsAnimation':
+    'No disponible para un fotograma: necesita la animación completa.',
+  'export.reason.singleFrame': 'Exporta un único fotograma: elige «Fotograma actual».',
+  'export.reason.needsFrames': 'Necesita al menos dos fotogramas.',
+  'export.projectTarget': 'Destino del proyecto',
+  'export.noOptions': 'Este formato no tiene opciones.',
+  'export.save': 'Guardar archivo',
+  'export.saveZip': 'Guardar ZIP ({count} archivos)',
+  'export.packZip': 'Empaquetar en un ZIP',
+  'export.packZip.hint': 'El ZIP solo agrupa los archivos generados; no cambia su contenido.',
   'export.experimentalNotice':
     'Este exportador es experimental: no se ha compilado ni probado en hardware. Revisa el código antes de usarlo.',
   'export.properties': 'Características',
@@ -277,7 +341,6 @@ export const es = {
   'export.bitOrder.lsb-first': 'LSB primero',
   'export.bitOrder.cgram-rows': 'filas de 5 bits (bit 4 a la izquierda)',
   'export.bitOrder.none': 'no aplica',
-  'export.memory': 'Memoria estimada',
   'export.memory.data': 'Datos: {bytes} bytes',
   'export.memory.flash': 'Flash: {used} de {max} bytes',
   'export.memory.ram': 'RAM: {used} de {max} bytes',
@@ -287,21 +350,14 @@ export const es = {
   'export.blocked': 'La exportación está bloqueada hasta corregir los errores.',
   'export.preview': 'Vista previa',
   'export.files': 'Archivos generados',
-  'export.download': 'Descargar',
-  'export.downloadFile': 'Descargar {name}',
-  'export.downloadZip': 'Descargar todo (.zip)',
   'export.copy': 'Copiar',
   'export.copied': 'Copiado al portapapeles',
   'export.copyFailed': 'No se pudo copiar. Usa "Descargar".',
-  'export.generate': 'Generar',
   'export.generating': 'Generando…',
   'export.saved': 'Exportado: {name}',
   'export.imagePreview': 'Vista previa de {name}',
   'export.cell': 'fotograma {frame}, fila {row}, columna {col}',
 
-  'export.option.frames': 'Fotogramas',
-  'export.frames.all': 'Todos',
-  'export.frames.current': 'Solo el actual',
   'export.option.board': 'Placa',
   'export.option.identifier': 'Nombre en el código',
   'export.option.progmem': 'Guardar en flash (PROGMEM)',
@@ -314,6 +370,9 @@ export const es = {
   'export.option.pin.d5': 'Pin D5',
   'export.option.pin.d6': 'Pin D6',
   'export.option.pin.d7': 'Pin D7',
+  'export.option.pin.din': 'Pin DIN',
+  'export.option.pin.clk': 'Pin CLK',
+  'export.option.pin.cs': 'Pin CS (LOAD)',
   'export.option.picDevice': 'Microcontrolador',
   'export.option.oscillatorHz': 'Oscilador (Hz)',
   'export.option.bus': 'Bus de datos',
@@ -341,9 +400,14 @@ export const es = {
   'export.hint.progmemU8g2': 'Con PROGMEM se usa drawXBMP(); sin PROGMEM, drawXBM() lee la RAM.',
   'export.hint.progmemData': 'Sin PROGMEM las tablas ocupan RAM.',
   'export.hint.progmemChar': 'Sin PROGMEM las tablas ocupan RAM y no se usa pgm_read_*.',
+  'export.hint.busFromProject':
+    'El bus lo fija la conexión del proyecto (Proyecto → Configuración).',
   'export.hint.ssd1306Address': 'Habitualmente 0x3C (algunos módulos usan 0x3D).',
   'export.hint.pcf8574Address': 'PCF8574: 0x20–0x27; PCF8574A: 0x38–0x3F.',
   'export.hint.pins': 'Número de pin digital de Arduino.',
+  'export.option.dataFormat': 'Formato de datos',
+  'export.dataFormat.bin': 'Archivo binario (.bin)',
+  'export.dataFormat.cArray': 'Arreglo C (.h)',
   'export.hint.picPin': 'Puerto y bit, por ejemplo B0 o RD7.',
 
   // Exportadores
@@ -366,6 +430,12 @@ export const es = {
     'Tablas createChar() y mapa de celdas, sin código de pantalla.',
   'exporter.binary': 'Datos binarios (.bin)',
   'exporter.binary.description': 'Bytes crudos de los fotogramas, sin cabecera.',
+  'exporter.arduino-max7219': 'Arduino · matriz MAX7219 (.ino)',
+  'exporter.arduino-max7219.description':
+    'Boceto completo sin bibliotecas externas: escribe los 8 registros de dígito del MAX7219 con la orientación, el cableado y el brillo del proyecto.',
+  'exporter.max7219-registers': 'Registros MAX7219 (8 bytes por fotograma)',
+  'exporter.max7219-registers.description':
+    'Los valores de DIG0…DIG7 de cada fotograma, ya orientados y cableados, como archivo binario o arreglo C.',
   'exporter.ascii': 'ASCII art',
   'exporter.ascii.description': '# para píxeles encendidos y . para apagados.',
   'exporter.png': 'PNG',
@@ -383,14 +453,15 @@ export const es = {
   'constraint.cgram8': 'Máximo 8 caracteres propios simultáneos por fotograma.',
   'constraint.experimentalXc8': 'Experimental: no verificado con el compilador XC8.',
   'constraint.noHeader': 'Sin cabecera: el tamaño de cada fotograma se calcula con ancho y alto.',
+  'constraint.ledMatrixOnly': 'Solo matrices de LEDs con MAX7219.',
+  'constraint.max7219Registers':
+    '8 bytes por fotograma: DIG0…DIG7 (direcciones 0x01…0x08), bit según el cableado elegido.',
   'constraint.currentFrame': 'Exporta el fotograma actual.',
   'constraint.allFrames': 'Exporta todos los fotogramas.',
   'constraint.gifTiming': 'El GIF guarda las duraciones en múltiplos de 10 ms.',
   'constraint.imageSize': 'Máximo 16 384 px por lado y 16,7 megapíxeles.',
 
   // Perfiles, paletas, placas, ROM
-  'profile.group.character': 'LCD de caracteres',
-  'profile.group.graphic': 'Pantallas gráficas',
   'profile.hd44780-16x2': 'HD44780 16×2',
   'profile.hd44780-20x2': 'HD44780 20×2',
   'profile.hd44780-16x4': 'HD44780 16×4',
@@ -400,6 +471,7 @@ export const es = {
   'profile.pcd8544-84x48': 'Nokia 5110 (PCD8544) 84×48',
   'profile.ks0108-128x64': 'KS0108 128×64',
   'profile.graphic-custom': 'Gráfica personalizada',
+  'profile.max7219-8x8': 'Matriz de LEDs 8×8 (MAX7219)',
   'palette.lm016l': 'LM016L verde',
   'palette.green': 'LCD verde',
   'palette.yellow': 'Amarillo y negro',
@@ -409,6 +481,8 @@ export const es = {
   'palette.oled': 'OLED blanco',
   'palette.oled-blue': 'OLED azul',
   'palette.amber': 'Ámbar',
+  'palette.led-red': 'LED rojo',
+  'palette.led-green': 'LED verde',
   'palette.custom': 'Personalizada',
   'board.arduino-uno': 'Arduino Uno (ATmega328P)',
   'board.arduino-nano': 'Arduino Nano (ATmega328P)',
@@ -422,6 +496,19 @@ export const es = {
   'dialog.close': 'Cerrar',
   'dialog.ok': 'Aceptar',
   'dialog.cancel': 'Cancelar',
+  'dialog.cgramFit.title': 'Ajustar a 8 caracteres propios',
+  'dialog.cgramFit.intro':
+    'Un HD44780 solo puede mostrar 8 dibujos propios distintos a la vez. Esta herramienta conserva los 8 que mejor representan el fotograma y cambia cada celda sobrante por el dibujo más parecido, una letra de la ROM elegida o un espacio. Modifica los píxeles del proyecto, se puede deshacer y no cambia el código que se exporta.',
+  'dialog.cgramFit.romHint':
+    'Si lo que dibujas es texto, elige antes el «Mapa ROM» en el panel Proyecto: las letras de la ROM no usan ranuras.',
+  'dialog.cgramFit.scope': 'Aplicar a',
+  'dialog.cgramFit.scope.current': 'Solo este fotograma',
+  'dialog.cgramFit.scope.all': 'Todos los fotogramas que no caben ({frames})',
+  'dialog.cgramFit.summary':
+    'Fotogramas afectados: {frames}. Celdas que cambian: {cells}. Píxeles distintos: {pixels}.',
+  'dialog.cgramFit.before': 'Antes (fotograma {frame})',
+  'dialog.cgramFit.after': 'Después (fotograma {frame})',
+  'dialog.cgramFit.apply': 'Ajustar',
   'dialog.new.title': 'Nuevo proyecto',
   'dialog.new.create': 'Crear',
   'dialog.new.unsaved':
@@ -431,9 +518,53 @@ export const es = {
   'dialog.unsaved.message': 'El proyecto tiene cambios que no se han guardado en un archivo.',
   'dialog.unsaved.save': 'Guardar',
   'dialog.unsaved.discard': 'No guardar',
-  'dialog.profile.title': 'Cambiar perfil de pantalla',
-  'dialog.profile.message':
-    'Los fotogramas pasarán de {from} a {to} píxeles. Lo que quede fuera se recortará (se puede deshacer).',
+  'dialog.projectSettings.title': 'Configuración del proyecto',
+  'dialog.projectSettings.rejected':
+    'No se aplicó ningún cambio: con ese mapa ROM algún fotograma superaría los 8 caracteres propios.',
+  'convert.title': 'Convertir pantalla',
+  'convert.current': 'Pantalla actual: {profile}.',
+  'convert.target': 'Nueva pantalla',
+  'convert.mode': 'Cambio de tamaño',
+  'convert.mode.crop-top-left': 'Recortar o ampliar desde la esquina superior izquierda',
+  'convert.mode.crop-center': 'Recortar o ampliar centrado',
+  'convert.mode.scale': 'Escalar (vecino más próximo)',
+  'convert.before': 'Antes (fotograma {frame})',
+  'convert.after': 'Después (fotograma {frame})',
+  'convert.report.none': 'No cambia nada.',
+  'convert.report.crop-top-left':
+    'El lienzo pasa de {from} a {to}: lo que no cabe a la derecha o abajo se recorta.',
+  'convert.report.crop-center':
+    'El lienzo pasa de {from} a {to}, centrado: los bordes que no caben se recortan.',
+  'convert.report.scale':
+    'El dibujo se escala de {from} a {to}: algunos píxeles se duplican o desaparecen.',
+  'convert.report.lost': 'Se pierden {pixels} píxeles encendidos en total.',
+  'convert.report.family':
+    'Cambia la familia de pantalla: se aplican sus reglas (p. ej. límite de 8 caracteres propios).',
+  'convert.report.colors': 'Se usan los colores predeterminados de la nueva pantalla.',
+  'convert.report.rom': 'El mapa ROM no aplica a la nueva pantalla y se desactiva.',
+  'convert.report.device':
+    'La conexión o el destino de código no son compatibles y quedan sin configurar.',
+  'convert.report.overLimit':
+    '{frames} fotograma(s) superarían los 8 caracteres propios: el proyecto quedará en reparación y la exportación de código bloqueada (no se ajusta nada solo).',
+  'convert.keepCopy': 'Guardar antes una copia del proyecto original',
+  'convert.recovery':
+    'La conversión se puede deshacer (Ctrl+Z) y no sobrescribe ningún archivo hasta que guardes.',
+  'convert.copyFailed': 'No se guardó la copia del original, así que no se convirtió nada.',
+  'convert.apply': 'Convertir',
+  'diagnostics.title': 'Patrones de diagnóstico de la matriz',
+  'diagnostics.intro':
+    'Añade estos fotogramas al final, exporta el boceto y comprueba en el módulo real:',
+  'diagnostics.orientation':
+    'Orientación: una flecha hacia arriba y un LED en la esquina superior izquierda.',
+  'diagnostics.corners':
+    'Esquinas: 1 LED arriba a la izquierda, 2 arriba a la derecha, 3 abajo a la derecha y 4 abajo a la izquierda.',
+  'diagnostics.rows': 'Filas: se enciende cada fila de arriba abajo.',
+  'diagnostics.cols': 'Columnas: se enciende cada columna de izquierda a derecha.',
+  'diagnostics.all': 'Todo encendido: comprueba el brillo y que no haya LEDs fundidos.',
+  'diagnostics.fix':
+    'Si se ve girado, cambia el giro; si se ve reflejado o con filas y columnas cambiadas, cambia el cableado (Proyecto → Configuración del proyecto) y vuelve a exportar. El dibujo no cambia.',
+  'diagnostics.add': 'Añadir {count} fotogramas',
+  'dialog.export.title': 'Exportar',
   'dialog.update.title': 'Nueva versión disponible',
   'dialog.update.message': 'Hay una versión nueva de LCD Studio lista para usarse.',
   'dialog.update.reload': 'Actualizar ahora',
@@ -489,6 +620,8 @@ export const es = {
   'toast.imageFailed': 'No se pudo importar {name}.',
   'toast.sequenceImported': 'Se importaron {frames} fotogramas.',
   'toast.cancelled': 'Operación cancelada.',
+  'toast.cgramFitted': 'Ajuste aplicado: {cells} celdas modificadas en {frames} fotograma(s).',
+  'toast.cgramFitNothing': 'No hay nada que ajustar: todo cabe en 8 caracteres propios.',
   'toast.saveCancelled': 'Guardado cancelado.',
   'toast.error': 'Error: {message}',
 
@@ -542,6 +675,29 @@ export const es = {
     'Los datos del fotograma {frame} tienen {actual} caracteres en lugar de {expected}.',
   'project.pixels': 'Los datos del fotograma {frame} no son válidos.',
   'migration.fromV1': 'Proyecto convertido desde el formato del prototipo (v1).',
+  'migration.fromV2':
+    'Proyecto del formato anterior (v2): se abrió completo; la conexión y el destino de código quedan sin configurar.',
+  'device.invalid': 'La configuración del dispositivo no es válida para esta pantalla.',
+  'device.invalidConnection': 'La conexión guardada no es compatible con esta pantalla.',
+  'device.invalidTarget':
+    'El destino de código guardado no es compatible con la pantalla o la conexión.',
+  'device.invalidMatrix': 'La orientación, el cableado o el brillo de la matriz no son válidos.',
+  'connection.hd44780-4bit': 'Paralelo de 4 bits (RS, E, D4–D7)',
+  'connection.hd44780-8bit': 'Paralelo de 8 bits (RS, E, D0–D7)',
+  'connection.hd44780-i2c-pcf8574': 'I²C con adaptador PCF8574 (mochila)',
+  'connection.i2c': 'I²C',
+  'connection.spi': 'SPI',
+  'connection.parallel': 'Paralelo (dos controladores)',
+  'connection.max7219-spi': 'Serie de 3 hilos (DIN, CLK, CS) del MAX7219',
+  'target.arduino-liquidcrystal': 'Arduino (AVR) · biblioteca LiquidCrystal — boceto completo',
+  'target.arduino-liquidcrystal-i2c': 'Arduino (AVR) · LiquidCrystal_I2C — boceto completo',
+  'target.pic-xc8': 'PIC · MPLAB XC8 — experimental (no compilado con XC8)',
+  'target.adafruit-gfx.sketch': 'Arduino (AVR) · Adafruit GFX/SSD1306 — boceto completo',
+  'target.adafruit-gfx.data': 'Arduino (AVR) · Adafruit GFX — solo tablas de mapa de bits',
+  'target.u8g2-xbm.sketch': 'Arduino (AVR) · U8g2 — boceto completo',
+  'target.u8g2-xbm.data': 'Arduino (AVR) · U8g2 (XBM) — solo tablas de mapa de bits',
+  'target.vertical-pages': 'C genérico · páginas verticales del controlador — solo datos',
+  'target.arduino-max7219': 'Arduino (AVR) · MAX7219 sin bibliotecas externas — boceto completo',
   'migration.charProfileUnsupported':
     'La pantalla {cols} × {rows} del prototipo no tiene un mapa DDRAM verificado: se abrió como pantalla gráfica.',
   'migration.unknownTheme': 'El tema "{theme}" no existe; se usó el predeterminado.',
@@ -579,6 +735,9 @@ export const es = {
   'cgram.overflow':
     'El fotograma {frame} necesita {glyphs} caracteres propios (máximo {max}); {cells} celdas no caben.',
   'cgram.noCustomChars': 'Los fotogramas seleccionados no usan caracteres propios.',
+  'cgram.limit': 'La operación dejaría {glyphs} caracteres propios en un fotograma (máximo {max}).',
+  'export.visualNotCertified':
+    'El proyecto está en reparación: {frames} fotograma(s) superan los 8 caracteres propios. Este archivo muestra el dibujo, pero no certifica que funcione en el LCD.',
   'rom.experimental': 'La tabla ROM {rom} es experimental: verifica el resultado en tu pantalla.',
   'i2c.invalidAddress': 'Dirección I²C no válida para PCF8574/PCF8574A: {value}.',
   'i2c.pins': 'Conecta SDA al pin {sda} y SCL al pin {scl}.',
@@ -596,6 +755,9 @@ export const es = {
   'gif.tooLarge': 'El GIF tendría {pixels} píxeles en total (máximo {max}). Reduce la escala.',
   'gif.durationRounded': '{count} duraciones no son múltiplo de 10 ms y se redondearán en el GIF.',
   'binary.layout': 'Cada fotograma ocupa {bytes} bytes; {frames} fotogramas uno tras otro.',
+  'max7219.layout': '{frames} fotograma(s) × 8 bytes, en orden DIG0…DIG7.',
+  'max7219.verifyOrientation':
+    'Comprueba la orientación y el cableado en el módulo real con Proyecto → Patrones de diagnóstico.',
   'unit.words': 'palabras',
   'unit.bytes': 'bytes',
   'platform.badResponse': 'Respuesta inesperada del sistema de archivos.',
@@ -605,7 +767,7 @@ export const es = {
   'history.loopMode': 'cambiar modo de reproducción',
   'history.appearance': 'cambiar colores',
   'history.rom': 'cambiar mapa ROM',
-  'history.profile': 'cambiar perfil',
+  'history.fitCgram': 'ajustar a 8 caracteres',
   'history.newFrame': 'fotograma nuevo',
   'history.duplicateFrame': 'duplicar fotograma',
   'history.deleteFrame': 'borrar fotograma',
@@ -621,6 +783,10 @@ export const es = {
   'history.rect': 'rectángulo',
   'history.ellipse': 'elipse',
   'history.text': 'texto',
+  'history.pattern': 'colocar patrón',
+  'history.projectSettings': 'configuración del proyecto',
+  'history.convert': 'convertir pantalla',
+  'history.diagnostics': 'patrones de diagnóstico',
   'history.pixel': 'cambiar píxel',
   'history.cut': 'cortar',
   'history.paste': 'pegar',
@@ -639,6 +805,52 @@ export const es = {
   'key.escape': 'Esc',
   'key.rightClick': 'Clic derecho',
   'export.checking': 'Comprobando…',
+  'wizard.steps': 'Pasos',
+  'wizard.back': 'Atrás',
+  'wizard.next': 'Siguiente',
+  'setup.step.family': 'Familia de pantalla',
+  'setup.step.display': 'Pantalla',
+  'setup.step.connection': 'Conexión',
+  'setup.step.target': 'Plataforma y código',
+  'setup.step.summary': 'Resumen',
+  'family.character': 'LCD de caracteres (controlador HD44780)',
+  'family.character.hint':
+    'Textos y caracteres propios de 5×8 en 16×2, 20×2, 16×4 o 20×4; como máximo 8 caracteres propios por fotograma.',
+  'family.graphic': 'Pantalla gráfica monocroma',
+  'family.graphic.hint':
+    'Cada píxel es independiente: SSD1306, PCD8544, KS0108 o un tamaño personalizado.',
+  'family.led-matrix': 'Matriz de LEDs (MAX7219)',
+  'family.led-matrix.hint':
+    'Una matriz física de 8×8 = 64 LEDs reales (no un LCD de 8×8 caracteres).',
+  'setup.features.character':
+    'Celdas de 5×8 píxeles con separación; la ROM del controlador puede ahorrar caracteres propios.',
+  'setup.features.graphic': 'Monocromo, 1 bit por píxel.',
+  'setup.features.led-matrix':
+    '8×8 LEDs monocromos; brillo de 16 niveles; el giro y el cableado del módulo se configuran a continuación.',
+  'setup.connection': 'Conexión',
+  'setup.later': 'Sin definir (configurar después)',
+  'setup.noConnection':
+    'Esta pantalla no tiene una conexión fija: se exportan imágenes y datos de mapa de bits.',
+  'setup.target': 'Plataforma, biblioteca o herramienta',
+  'setup.experimentalOff': 'Experimental: actívalo en Archivo → Preferencias para elegirlo.',
+  'setup.matrix': 'Módulo de LEDs',
+  'setup.rotation': 'Giro del módulo montado',
+  'setup.rotation.value': '{deg}°',
+  'setup.wiring': 'Cableado interno',
+  'setup.brightness': 'Brillo (MAX7219)',
+  'setup.brightness.value': '{value} de 15',
+  'setup.matrix.hint':
+    'El giro y el cableado describen el módulo físico y solo afectan a los datos exportados; el dibujo no se gira. Compruébalos con Proyecto → Patrones de diagnóstico.',
+  'setup.designOnly': 'Solo diseño',
+  'setup.noTargetWithoutConnection':
+    'Sin conexión no hay plataforma que elegir. Puedes configurarla después.',
+  'setup.notConfigured': 'sin configurar',
+  'setup.summary.hint':
+    'Todo esto se guarda en el proyecto y se puede cambiar en Proyecto → Configuración del proyecto.',
+  'wiring.rows-msb-left': 'Filas por dígito, bit 7 = columna izquierda (LedControl, 1088AS)',
+  'wiring.rows-lsb-left': 'Filas por dígito, bit 0 = columna izquierda',
+  'wiring.cols-msb-top': 'Columnas por dígito, bit 7 = fila superior',
+  'wiring.cols-lsb-top': 'Columnas por dígito, bit 0 = fila superior',
 } as const;
 
 export type MessageKey = keyof typeof es;

@@ -7,7 +7,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickBool,
   pickEnum,
@@ -61,7 +60,8 @@ export const verticalPagesExporter: Exporter<PagesOptions> = {
   id: 'vertical-pages',
   labelKey: 'exporter.vertical-pages',
   descriptionKey: 'exporter.vertical-pages.description',
-  category: 'code',
+  category: 'data',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.h',
   orientation: 'vertical-pages',
@@ -91,7 +91,6 @@ export const verticalPagesExporter: Exporter<PagesOptions> = {
 
   fields() {
     return [
-      frameScopeField(),
       boardField(),
       identifierField(),
       {

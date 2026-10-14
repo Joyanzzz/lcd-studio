@@ -17,11 +17,18 @@
 - **core**: límites y aritmética comprobada; empaquetado de bits; base64
   (vectores RFC 4648 y casos manipulados); CRC-32 (vectores conocidos); ZIP
   (estructura, CRC, determinismo, nombres inseguros, ZIP Slip); nombres;
-  proyecto e invariantes; formato v2 (ida y vuelta, 20 manipulaciones,
-  512×512×240); migración v1 con archivos válidos, dañados, truncados,
+  proyecto e invariantes; formato v3 (ida y vuelta con `device`, 24
+  manipulaciones, 512×512×240) y migración v2 → v3 sin pérdida; migración v1 con archivos válidos, dañados, truncados,
   sobredimensionados y manipulados (`tests/fixtures/projects/`); historial
   (orden, profundidad, presupuesto de 128 MiB con 512×512); reproducción;
-  análisis CGRAM y plan de animación.
+  análisis CGRAM y plan de animación; ajuste a 8 caracteres (sin cambios si
+  ya cabe, límite de 8 glifos, peso de las repeticiones, determinismo e
+  idempotencia, ROM A00, 20×4 con todas las celdas distintas, alcance y
+  pantallas gráficas); restricción de 8 patrones (repetir permitido, noveno
+  rechazado, ROM que no consume ranura, quitar la ROM, fotogramas nuevos,
+  reparación que mantiene/reduce y rechaza aumentar), celdas no disponibles,
+  propagación de patrones compartidos; conversión de pantalla (recorte,
+  centrado, escala, informe, reglas por familia, matriz LED).
 - **engine**: línea, rectángulo y elipse (dorados y casos degenerados),
   relleno (512×512 y laberinto), transformaciones, selección, texto,
   detección de formato de imagen y límites, remuestreo, niveles, tramados
@@ -33,8 +40,19 @@
   independiente (`omggif`), incluido reinicio del diccionario; cada
   exportador (contenido, opciones, validaciones, bloqueo CGRAM, memoria AVR,
   pines, I²C, PROGMEM, `uint16_t`, modos de reproducción); determinismo de
-  todos los formatos.
-- **storage**, **workers**, **ui/editor-store**, **i18n** (paridad de claves,
+  todos los formatos; proyecto en reparación (código bloqueado, imágenes con
+  aviso); MAX7219: bytes conocidos, barridos, giro de 90°, y para cada
+  patrón de diagnóstico × 4 giros × 4 cableados un módulo simulado que
+  decodifica los registros y gira la imagen debe mostrar exactamente el
+  dibujo; boceto y datos binarios coinciden con los registros.
+- **ui/editor-store** (límite: trazo rechazado entero al soltar con un solo
+  aviso, sin historial/revisión/modificado; repetir con la paleta y pegar;
+  copia frente a edición global; texto, transformación, importación;
+  reparación; limpieza al cambiar de proyecto), **ui/limit-notice** (visible
+  durante el intento, 5 s después, reutilización, cierre, sin anuncios
+  repetidos), **ui/timeline-layout** (proporción, mínimo legible con 240
+  fotogramas, tamaño uniforme).
+- **storage**, **workers**, **i18n** (paridad de claves,
   marcadores, claves usadas por el código, formato numérico, detección de
   idioma).
 
@@ -47,15 +65,30 @@ navegador determina el idioma de la interfaz en el primer inicio, así que
 todas las pruebas se ejecutan en ambos idiomas; los textos esperados salen de
 los mismos diccionarios.
 
-Cubren: crear, editar, guardar, cerrar y reabrir; recuperación tras recarga;
-importar PNG y GIF; reordenar fotogramas (teclado y arrastre); deshacer y
-rehacer; exportar **todos** los formatos de un perfil de caracteres y de uno
-OLED comparando los bytes descargados con los del núcleo; rechazo de archivos
-dañados y sobredimensionados sin perder el proyecto; proyecto de 512×512 con
-100 fotogramas; edición solo con teclado; foco de diálogos; diseño de
-escritorio y móvil (360 px sin desplazamiento horizontal); tema claro y oscuro
-con axe-core (WCAG 2.1 AA, sin infracciones graves); ausencia de peticiones a
-otros orígenes y de errores de consola; funcionamiento sin conexión.
+Cubren: asistente de nuevo proyecto (y «solo diseño»), editar, guardar
+(formato v3), cerrar y reabrir con la configuración del dispositivo
+restaurada; migración v2 y v1; recuperación tras recarga; importar PNG y GIF;
+reordenar fotogramas (teclado y arrastre); deshacer y rehacer; **límite de 8
+patrones** (repetir con la paleta, noveno rechazado sin paso de deshacer, un
+único aviso visible durante el intento y oculto 5 s después con reloj
+simulado, cierre con Escape), copia frente a edición global de un patrón
+repetido, **proyecto en reparación** (se abre, código bloqueado, imágenes
+con aviso, reparar y guardar) y ajuste a 8 caracteres; exportar **todos** los
+formatos de un perfil de caracteres, uno OLED y la matriz LED con el
+asistente, comparando los bytes descargados con los del núcleo; formatos
+incompatibles con el contenido deshabilitados; cancelar el asistente sin
+archivos; configuración y conversión canceladas sin cambios; conversión con
+vista previa, copia del original y deshacer; matriz LED con giro, cableado y
+patrones de diagnóstico; menús con teclado y devolución del foco; rechazo de
+archivos dañados y sobredimensionados sin perder el proyecto; proyecto de
+512×512 con 100 fotogramas; línea de tiempo con 240 fotogramas (mínimo
+legible, desplazamiento, selección visible, zoom); edición solo con teclado;
+diseño de escritorio, móvil vertical (360 px, cajón, línea de tiempo
+plegable) y móvil horizontal (740×360, lienzo y línea de tiempo visibles);
+cambio de orientación conservando fotograma, selección y reproducción; tema
+claro y oscuro con axe-core (WCAG 2.1 AA, sin infracciones graves); ausencia
+de peticiones a otros orígenes y de errores de consola; funcionamiento sin
+conexión.
 
 ### Igualdad web/escritorio
 

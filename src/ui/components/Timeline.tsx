@@ -1,56 +1,88 @@
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { clampZoom, thumbSize, TIMELINE_ZOOM_HEIGHTS } from '../canvas/timeline-layout.ts';
 import { hexToRgb, resolveColors, type LcdColors } from '../../core/appearance.ts';
 import { LIMITS } from '../../core/limits.ts';
 import { LOOP_MODES, type LoopMode } from '../../core/project.ts';
-import { useEditor, useServices } from '../app-context.tsx';
+import { useEditor, usePreferences, useServices } from '../app-context.tsx';
 import { useI18n, type MessageKey } from '../i18n/index.tsx';
 import { thumbnailQueue } from '../canvas/idle-queue.ts';
 import { PixelIcon } from './PixelIcon.tsx';
 
-/** Miniatura: solo se redibuja si cambia su arreglo de píxeles o los colores. */
+/** Observador compartido: las miniaturas solo se dibujan cuando entran en la vista. */
+function useVisible(ref: React.RefObject<Element | null>, root: React.RefObject<Element | null>) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setVisible(true);
+      },
+      { root: root.current, rootMargin: '0px 400px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, root]);
+  return visible;
+}
+
+/**
+ * Miniatura: se dibuja al tamaño mostrado (coste fijo por fotograma aunque el
+ * lienzo sea de 512 × 512), solo cuando es visible y solo si cambian sus
+ * píxeles, los colores o el tamaño.
+ */
 const FrameThumb = memo(function FrameThumb(props: {
   pixels: Uint8Array;
   width: number;
   height: number;
   colors: LcdColors;
+  boxWidth: number;
+  boxHeight: number;
+  root: React.RefObject<Element | null>;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { pixels, width, height, colors } = props;
-  // La miniatura se dibuja a su tamaño final (máx. 150 × 52): coste fijo por
-  // fotograma aunque el lienzo sea de 512 × 512.
-  const k = Math.min(1, 150 / width, 52 / height);
+  const { pixels, width, height, colors, boxWidth, boxHeight, root } = props;
+  const visible = useVisible(ref, root);
+  const k = Math.min(boxWidth / width, boxHeight / height);
   const tw = Math.max(1, Math.round(width * k));
   const th = Math.max(1, Math.round(height * k));
-  useEffect(
-    () =>
-      thumbnailQueue.add(() => {
-        const canvas = ref.current;
-        const ctx = canvas?.getContext('2d');
-        if (!canvas || !ctx) return;
-        const img = new ImageData(tw, th);
-        const on = hexToRgb(colors.on);
-        const off = hexToRgb(colors.off);
-        for (let y = 0; y < th; y++) {
-          const sy = Math.floor((y * height) / th);
-          for (let x = 0; x < tw; x++) {
-            const c = pixels[sy * width + Math.floor((x * width) / tw)] ? on : off;
-            const p = (y * tw + x) * 4;
-            img.data[p] = c[0];
-            img.data[p + 1] = c[1];
-            img.data[p + 2] = c[2];
-            img.data[p + 3] = 255;
-          }
+  useEffect(() => {
+    if (!visible) return undefined;
+    return thumbnailQueue.add(() => {
+      const canvas = ref.current;
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx) return;
+      const img = new ImageData(tw, th);
+      const on = hexToRgb(colors.on);
+      const off = hexToRgb(colors.off);
+      for (let y = 0; y < th; y++) {
+        const sy = Math.floor((y * height) / th);
+        for (let x = 0; x < tw; x++) {
+          const c = pixels[sy * width + Math.floor((x * width) / tw)] ? on : off;
+          const p = (y * tw + x) * 4;
+          img.data[p] = c[0];
+          img.data[p + 1] = c[1];
+          img.data[p + 2] = c[2];
+          img.data[p + 3] = 255;
         }
-        ctx.putImageData(img, 0, 0);
-      }),
-    [pixels, width, height, colors, tw, th],
+      }
+      ctx.putImageData(img, 0, 0);
+    });
+  }, [visible, pixels, width, height, colors, tw, th]);
+  return (
+    <span className="thumb-box">
+      <canvas ref={ref} width={tw} height={th} aria-hidden="true" />
+    </span>
   );
-  return <canvas ref={ref} width={tw} height={th} aria-hidden="true" />;
 });
 
 export function Timeline() {
   const { tk } = useI18n();
-  const { store } = useServices();
+  const { store, preferences } = useServices();
+  const prefs = usePreferences();
   const project = useEditor((s) => s.project);
   const current = useEditor((s) => s.current);
   const playing = useEditor((s) => s.playing);
@@ -63,15 +95,43 @@ export function Timeline() {
     null,
   );
   const items = useRef<(HTMLLIElement | null)[]>([]);
+  const strip = useRef<HTMLUListElement>(null);
+  const [stripWidth, setStripWidth] = useState(0);
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return undefined;
+    const update = () => setStripWidth(el.clientWidth - 8);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [prefs.timelineCollapsed]);
+  const zoom = clampZoom(prefs.timelineZoom);
+  const size = thumbSize(
+    project.width,
+    project.height,
+    zoom,
+    prefs.timelineFit,
+    stripWidth,
+    project.frames.length,
+  );
+  // Tamaño uniforme de las miniaturas mediante variables CSS de la tira.
+  useLayoutEffect(() => {
+    strip.current?.style.setProperty('--thumb-w', `${size.width}px`);
+    strip.current?.style.setProperty('--thumb-h', `${size.height}px`);
+  }, [size.width, size.height]);
+  const setZoom = (z: number) =>
+    preferences.update({ timelineZoom: clampZoom(z), timelineFit: false });
 
   const [durationSource, setDurationSource] = useState(frame);
   if (durationSource !== frame) {
     setDurationSource(frame);
     setDuration(String(frame.durationMs));
   }
+  // El fotograma seleccionado siempre queda a la vista (también al cambiar el zoom).
   useEffect(() => {
     items.current[current]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [current]);
+  }, [current, size.width, prefs.timelineCollapsed]);
 
   const durationNumber = Number(duration);
   const durationValid =
@@ -97,12 +157,68 @@ export function Timeline() {
   };
 
   return (
-    <footer className="timeline raised" aria-label={tk('timeline.label')}>
-      <div className="panel-title" id={`${ids}-title`}>
-        {tk('timeline.frames')} —{' '}
-        {tk('timeline.count', { frames: project.frames.length, max: LIMITS.maxFrames })}
+    <footer
+      className="timeline raised"
+      aria-label={tk('timeline.label')}
+      data-collapsed={prefs.timelineCollapsed ? 'true' : 'false'}
+      data-testid="timeline"
+    >
+      <div className="timeline-head">
+        <div className="panel-title" id={`${ids}-title`}>
+          {tk('timeline.frames')} —{' '}
+          {tk('timeline.count', { frames: project.frames.length, max: LIMITS.maxFrames })}
+        </div>
+        <div className="timeline-view" role="group" aria-label={tk('timeline.view')}>
+          <button
+            type="button"
+            className="btn icon-only compact"
+            onClick={() => setZoom(zoom - 1)}
+            disabled={zoom === 0 && !prefs.timelineFit}
+            aria-label={tk('timeline.zoomOut')}
+            title={tk('timeline.zoomOut')}
+            data-testid="timeline-zoom-out"
+          >
+            <PixelIcon name="zoomOut" />
+          </button>
+          <button
+            type="button"
+            className="btn icon-only compact"
+            onClick={() => setZoom(zoom + 1)}
+            disabled={zoom === TIMELINE_ZOOM_HEIGHTS.length - 1 && !prefs.timelineFit}
+            aria-label={tk('timeline.zoomIn')}
+            title={tk('timeline.zoomIn')}
+            data-testid="timeline-zoom-in"
+          >
+            <PixelIcon name="zoomIn" />
+          </button>
+          <button
+            type="button"
+            className="btn compact"
+            aria-pressed={prefs.timelineFit}
+            onClick={() => preferences.update({ timelineFit: !prefs.timelineFit })}
+            title={tk('timeline.fit.tip')}
+            data-testid="timeline-fit"
+          >
+            <PixelIcon name="fit" />
+            {tk('timeline.fit')}
+          </button>
+          <button
+            type="button"
+            className="btn compact"
+            aria-expanded={!prefs.timelineCollapsed}
+            aria-controls={`${ids}-strip`}
+            onClick={() => preferences.update({ timelineCollapsed: !prefs.timelineCollapsed })}
+            data-testid="timeline-collapse"
+          >
+            <PixelIcon name={prefs.timelineCollapsed ? 'up' : 'down'} />
+            {tk(prefs.timelineCollapsed ? 'timeline.expand' : 'timeline.collapse')}
+          </button>
+        </div>
       </div>
       <ul
+        id={`${ids}-strip`}
+        ref={strip}
+        hidden={prefs.timelineCollapsed}
         className="frame-strip sunken"
         role="listbox"
         aria-labelledby={`${ids}-title`}
@@ -171,29 +287,37 @@ export function Timeline() {
               }}
               onDragEnd={() => setDrag(null)}
             >
-              <div>
+              <span className="frame-number" aria-hidden="true">
+                <span className="frame-hash">#</span>
                 {i + 1}
                 {mark ? <span className="onion-mark"> {mark}</span> : null}
-              </div>
+              </span>
               <FrameThumb
                 pixels={f.pixels}
                 width={project.width}
                 height={project.height}
                 colors={colors}
+                boxWidth={size.width}
+                boxHeight={size.height}
+                root={strip}
               />
-              <div>{f.durationMs} ms</div>
+              <span className="frame-duration" aria-hidden="true">
+                <PixelIcon name="clock" />
+                {tk('timeline.ms', { ms: f.durationMs })}
+              </span>
             </li>
           );
         })}
       </ul>
       <p id={`${ids}-hint`} className="visually-hidden">
-        {tk('timeline.reorderHint')}
+        {tk('timeline.reorderHint')} {tk('timeline.uniformHint')}
       </p>
       <div className="timeline-bar">
         <button
           type="button"
           className="btn primary"
           data-testid="play"
+          data-playing={playing ? 'true' : 'false'}
           onClick={() => store.togglePlay()}
           disabled={project.frames.length < 2 && !playing}
         >

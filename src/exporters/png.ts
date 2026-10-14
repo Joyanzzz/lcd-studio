@@ -27,6 +27,7 @@ export const pngExporter: Exporter<PngOptions> = {
   labelKey: 'exporter.png',
   descriptionKey: 'exporter.png.description',
   category: 'image',
+  contents: ['frame', 'selection'],
   stability: 'stable',
   extension: '.png',
   orientation: 'image',

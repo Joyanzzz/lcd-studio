@@ -1,145 +1,7 @@
-import { useState } from 'react';
-import { LIMITS } from '../../core/limits.ts';
-import { DEFAULT_PROFILE_ID, DISPLAY_PROFILES, getProfile } from '../../device-profiles/index.ts';
 import { usePreferences, useServices } from '../app-context.tsx';
 import { LOCALES, useI18n, type Locale } from '../i18n/index.tsx';
 import type { ThemePreference } from '../../storage/preferences.ts';
 import { Dialog } from './Dialog.tsx';
-
-export function NewProjectDialog(props: {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (options: { name: string; profileId: string; width?: number; height?: number }) => void;
-}) {
-  const { tk, t } = useI18n();
-  const [name, setName] = useState('');
-  const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
-  const [width, setWidth] = useState(128);
-  const [height, setHeight] = useState(64);
-  const profile = getProfile(profileId)!;
-  const custom = profile.kind === 'graphic' && !profile.fixedSize;
-  const valid =
-    !custom ||
-    (Number.isInteger(width) &&
-      Number.isInteger(height) &&
-      width >= 1 &&
-      height >= 1 &&
-      width <= LIMITS.canvasMaxSide &&
-      height <= LIMITS.canvasMaxSide);
-  const create = () => {
-    if (!valid) return;
-    props.onCreate({
-      name: name.trim() || tk('app.defaultProjectName'),
-      profileId,
-      ...(custom ? { width, height } : {}),
-    });
-  };
-  return (
-    <Dialog
-      open={props.open}
-      title={tk('dialog.new.title')}
-      onClose={props.onClose}
-      initialFocus="#new-name"
-      testId="new-dialog"
-      actions={
-        <>
-          <button
-            type="button"
-            className="btn primary"
-            disabled={!valid}
-            onClick={create}
-            data-testid="new-create"
-          >
-            {tk('dialog.new.create')}
-          </button>
-          <button type="button" className="btn" onClick={props.onClose}>
-            {tk('dialog.cancel')}
-          </button>
-        </>
-      }
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          create();
-        }}
-      >
-        <div className="row">
-          <label htmlFor="new-name">{tk('project.name')}</label>
-          <input
-            id="new-name"
-            className="field grow"
-            maxLength={LIMITS.nameMaxLength}
-            value={name}
-            placeholder={tk('app.defaultProjectName')}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div className="row">
-          <label htmlFor="new-profile">{tk('project.profile')}</label>
-          <select
-            id="new-profile"
-            className="field grow"
-            value={profileId}
-            onChange={(e) => setProfileId(e.target.value)}
-          >
-            <optgroup label={tk('profile.group.character')}>
-              {DISPLAY_PROFILES.filter((p) => p.kind === 'character').map((p) => (
-                <option key={p.id} value={p.id}>
-                  {t(p.labelKey)}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label={tk('profile.group.graphic')}>
-              {DISPLAY_PROFILES.filter((p) => p.kind === 'graphic').map((p) => (
-                <option key={p.id} value={p.id}>
-                  {t(p.labelKey)}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
-        {custom ? (
-          <div className="row">
-            <label htmlFor="new-width">{tk('project.width')}</label>
-            <input
-              id="new-width"
-              className="field narrow"
-              type="number"
-              min={1}
-              max={LIMITS.canvasMaxSide}
-              value={Number.isFinite(width) ? width : ''}
-              aria-invalid={!valid}
-              onChange={(e) => setWidth(e.target.valueAsNumber)}
-            />
-            <label htmlFor="new-height">{tk('project.height')}</label>
-            <input
-              id="new-height"
-              className="field narrow"
-              type="number"
-              min={1}
-              max={LIMITS.canvasMaxSide}
-              value={Number.isFinite(height) ? height : ''}
-              aria-invalid={!valid}
-              onChange={(e) => setHeight(e.target.valueAsNumber)}
-            />
-          </div>
-        ) : null}
-        {!valid ? (
-          <p className="error-text" role="alert">
-            {tk('limits.canvasSize', {
-              width: String(width),
-              height: String(height),
-              max: LIMITS.canvasMaxSide,
-            })}
-          </p>
-        ) : null}
-        <p className="hint">{tk('dialog.new.unsaved')}</p>
-        <button type="submit" hidden />
-      </form>
-    </Dialog>
-  );
-}
 
 export function SettingsDialog(props: { open: boolean; onClose: () => void }) {
   const { tk, t } = useI18n();
@@ -204,7 +66,7 @@ export function SettingsDialog(props: { open: boolean; onClose: () => void }) {
 }
 
 const SHORTCUTS: readonly [readonly string[], string][] = [
-  [['P', 'E', 'L', 'R', 'C', 'F', 'T', 'S'], 'shortcut.tools'],
+  [['P', 'E', 'L', 'R', 'C', 'F', 'T', 'S', 'G'], 'shortcut.tools'],
   [['Ctrl+Z', 'Ctrl+Y'], 'shortcut.undoRedo'],
   [['Ctrl+S', 'Ctrl+O'], 'shortcut.save'],
   [[',', '.'], 'shortcut.frames'],

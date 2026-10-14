@@ -1,3 +1,5 @@
+import { overLimitFrames } from '../core/constraints.ts';
+import type { DeviceConfig } from '../core/device.ts';
 import { isAppError } from '../core/errors.ts';
 import { safeFileName } from '../core/names.ts';
 import { PROJECT_EXTENSION } from '../core/project-format.ts';
@@ -28,7 +30,13 @@ function reportError(services: AppServices, error: unknown): void {
 
 export function newProject(
   services: AppServices,
-  options: { name: string; profileId: string; width?: number; height?: number },
+  options: {
+    name: string;
+    profileId: string;
+    width?: number;
+    height?: number;
+    device?: DeviceConfig;
+  },
 ): boolean {
   try {
     const project = createProject(options);
@@ -76,6 +84,9 @@ export async function openProject(services: AppServices, migratedName: string): 
   await services.platform.acceptOpenedProject();
   services.autosave.markDirty();
   services.toasts.push('success', 'toast.projectOpened', { name: project.name });
+  // Proyecto antiguo por encima del límite: se abre completo, en estado de reparación.
+  const over = overLimitFrames(project);
+  if (over.length > 0) services.toasts.push('warning', 'repair.opened', { frames: over.length });
   for (const w of result.warnings) {
     services.toasts.push(w.code === 'migration.fromV1' ? 'info' : 'warning', w.code, {
       ...(w.params ?? {}),

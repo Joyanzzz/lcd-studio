@@ -11,6 +11,34 @@ Antes de generar se valida todo; si hay un error, **no se genera nada** y la
 interfaz explica el motivo. Los avisos (por ejemplo, flash casi llena) no
 bloquean.
 
+## Asistente (Exportar → Exportar…, Ctrl+E)
+
+1. **Contenido**: fotograma actual, selección (rectángulo del fotograma
+   actual) o animación completa. Lo que no aplica aparece deshabilitado con
+   la razón (sin selección, un solo fotograma).
+2. **Tipo y formato**, en tres grupos:
+   - *Imágenes*: PNG, hoja de sprites y GIF animado (no hay BMP).
+   - *Datos de mapa de bits*: los píxeles como bytes (arreglo C, archivo
+     binario o texto) con el orden de bits indicado. «Mapa de bits» aquí NO es
+     un archivo .BMP.
+   - *Código*: solo los destinos compatibles con la pantalla y la conexión
+     del proyecto (ver `docs/device-profiles.md`); el destino del proyecto se
+     marca y se preselecciona.
+   Los formatos incompatibles con el contenido se muestran deshabilitados con
+   la razón junto a la opción (p. ej. GIF necesita la animación completa; el
+   código no admite una selección).
+3. **Opciones** del formato (placa, pines, identificador…). El alcance de
+   fotogramas lo fija el paso 1.
+4. **Validación y resultado**: diagnósticos, memoria estimada y vista previa.
+   Solo al pulsar **Guardar** se escribe el archivo; si hay varios, se
+   pueden empaquetar en un ZIP (contenedor, no un formato de contenido).
+   Las opciones de una exportación guardada se recuerdan para repetirla;
+   cancelar no cambia nada.
+
+Guardar el proyecto editable (Archivo → Guardar) y exportar un resultado
+(Exportar) son acciones distintas: el proyecto conserva todo para seguir
+editando; la exportación produce archivos para usar en otro sitio.
+
 ## Resumen
 
 | Id | Nombre | Pantallas | Orientación / bits | Salida | Estado |
@@ -21,6 +49,8 @@ bloquean.
 | `arduino-liquidcrystal` | Arduino LiquidCrystal | HD44780 | celdas + CGRAM | `.ino` | estable |
 | `arduino-liquidcrystal-i2c` | Arduino LiquidCrystal_I2C | HD44780 | celdas + CGRAM | `.ino` | estable |
 | `pic-xc8` | PIC XC8 | HD44780 | celdas + CGRAM | `.zip` (5 archivos) | **experimental** |
+| `arduino-max7219` | Arduino MAX7219 | matriz LED 8×8 | 8 registros DIG0–DIG7 por fotograma | `.ino` | estable |
+| `max7219-registers` | Registros MAX7219 | matriz LED 8×8 | 8 bytes por fotograma (DIG0–DIG7) | `.bin` o `.h` | estable |
 | `custom-chars` | Caracteres 5×8 | HD44780 | filas de 5 bits, bit 4 izquierda | `.h` | estable |
 | `binary` | Datos binarios | todas | filas MSB / filas LSB / páginas | `.bin` | estable |
 | `ascii` | ASCII art | todas | texto | `.txt` | estable |
@@ -103,6 +133,24 @@ frecuencia y memoria de programa (estimada).
 **No se ha compilado con XC8 ni probado en hardware**: por eso solo aparece al
 activar «Mostrar funciones experimentales» y la interfaz lo indica
 claramente. Ver `docs/hardware-validation.md`.
+
+## Matriz de LEDs MAX7219
+
+Cada fotograma son **8 bytes**: los valores de los registros de dígito DIG0…
+DIG7 (direcciones 0x01…0x08), en ese orden, ya con el giro físico del módulo
+y el cableado del proyecto (tabla en `docs/device-profiles.md`). El dibujo del
+proyecto no se gira: el giro describe cómo está montado el módulo.
+
+- `max7219-registers` `.bin`: fotogramas uno tras otro, sin cabecera
+  (`8 × fotogramas` bytes). `.h`: `uint8_t <id>_digits[]` y
+  `uint16_t <id>_durations_ms[]`.
+- `arduino-max7219` `.ino`: boceto completo sin bibliotecas externas. Escribe
+  cada registro con `shiftOut()` (dirección y valor, MSB primero, CS a nivel
+  bajo durante la escritura). Al iniciar: prueba de pantalla 0x0F = 0,
+  decodificación 0x09 = 0 (matriz), límite de escaneo 0x0B = 7, intensidad
+  0x0A = brillo, apagado 0x0C = 1 (normal). Pines por omisión DIN 11, CLK 13,
+  CS 10 (cualquier pin digital). La reproducción usa las duraciones de los
+  fotogramas; el refresco físico de los LEDs lo hace el propio MAX7219.
 
 ## Caracteres personalizados
 

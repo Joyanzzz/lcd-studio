@@ -136,6 +136,31 @@ const DEFS: Record<string, IconDef> = {
     '.......kk.......',
     '.....kkkkkk.....',
   ],
+  // Duración de un fotograma.
+  clock: (P) => {
+    ring(P, 7.5, 7.5, 6, 'k', 'w');
+    for (let y = 4; y <= 8; y++) P(7, y, 'k');
+    for (let x = 8; x <= 10; x++) P(x, 8, 'k');
+  },
+  // Colocar patrón: sello sobre una celda de 5×8.
+  pattern: [
+    '.....kkkkk......',
+    '.....knnnk......',
+    '.....knnnk......',
+    '......knk.......',
+    '....kkkkkkk.....',
+    '...kwwwwwwwk....',
+    '...kkkkkkkkk....',
+    '................',
+    '..k.k.k.k.k.k...',
+    '................',
+    '..k.kkk.kkk.k...',
+    '....k.k.k.k.....',
+    '..k.kkk.kkk.k...',
+    '................',
+    '..k.k.k.k.k.k...',
+    '................',
+  ],
   new: [
     '................',
     '...kkkkkkk......',
@@ -207,7 +232,7 @@ const DEFS: Record<string, IconDef> = {
   },
   redo: (P) => DEFS_FN('undo')((x, y, c) => P(15 - x, y, c)),
   help: (P) => {
-    ring(P, 7.5, 7.5, 6.7, 'k', 'b');
+    ring(P, 7.5, 7.5, 6.7, 'k', 'B');
     [
       '..www..',
       '.w...w.',
@@ -217,7 +242,7 @@ const DEFS: Record<string, IconDef> = {
       '...w...',
       '.......',
       '...w...',
-    ].forEach((row, y) => [...row].forEach((c, x) => c === 'w' && P(x + 4, y + 4, 'w')));
+    ].forEach((row, y) => [...row].forEach((c, x) => c === 'w' && P(x + 4, y + 4, 'k')));
   },
   settings: (P) => {
     ring(P, 7.5, 7.5, 5, 'k', 'l');
@@ -319,8 +344,12 @@ const DEFS: Record<string, IconDef> = {
   },
   image: (P) => {
     box(P, 1, 2, 14, 13, 'k', 'B');
-    for (let x = 2; x <= 13; x++) for (let y = 9; y <= 12; y++) P(x, y, 'G');
-    ring(P, 10.5, 5.5, 1.6, 'y', 'y');
+    // Montaña con contorno (visible también en el tema oscuro) y sol.
+    for (let x = 2; x <= 13; x++) {
+      const top = Math.max(8, 12 - Math.min(Math.abs(x - 5), 4) - (x > 8 ? 1 : 0));
+      for (let y = top; y <= 12; y++) P(x, y, y === top ? 'k' : 'G');
+    }
+    ring(P, 10.5, 5.5, 1.6, 'k', 'y');
   },
   export: (P) => {
     box(P, 1, 5, 10, 14, 'k', 'w');
@@ -454,22 +483,38 @@ export function iconPaths(name: string): readonly { color: string; d: string }[]
     if (!set) grid.set(c, (set = new Set()));
     set.add(y * 16 + x);
   });
-  const result = [...grid.entries()].map(([color, cells]) => {
-    let d = '';
-    for (let y = 0; y < 16; y++) {
-      let x = 0;
-      while (x < 16) {
-        if (!cells.has(y * 16 + x)) {
-          x++;
-          continue;
-        }
-        const start = x;
-        while (x < 16 && cells.has(y * 16 + x)) x++;
-        d += `M${start} ${y}h${x - start}v1h${start - x}z`;
-      }
-    }
-    return { color, d };
-  });
+  const result = [...grid.entries()].map(([color, cells]) => ({ color, d: rowsToPath(cells) }));
+  // Contorno: píxeles dibujados con algún vecino vacío más los trazos negros
+  // interiores (detalles). En el tema oscuro solo se muestra esta capa, en
+  // blanco (iconos de solo contorno).
+  const all = new Set<number>();
+  for (const cells of grid.values()) for (const c of cells) all.add(c);
+  const edge = new Set<number>(grid.get('k') ?? []);
+  for (const c of all) {
+    const x = c % 16;
+    const y = Math.floor(c / 16);
+    const empty = (nx: number, ny: number) =>
+      nx < 0 || ny < 0 || nx > 15 || ny > 15 || !all.has(ny * 16 + nx);
+    if (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1)) edge.add(c);
+  }
+  result.push({ color: 'edge', d: rowsToPath(edge) });
   CACHE.set(name, result);
   return result;
+}
+
+function rowsToPath(cells: ReadonlySet<number>): string {
+  let d = '';
+  for (let y = 0; y < 16; y++) {
+    let x = 0;
+    while (x < 16) {
+      if (!cells.has(y * 16 + x)) {
+        x++;
+        continue;
+      }
+      const start = x;
+      while (x < 16 && cells.has(y * 16 + x)) x++;
+      d += `M${start} ${y}h${x - start}v1h${start - x}z`;
+    }
+  }
+  return d;
 }

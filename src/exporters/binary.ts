@@ -2,7 +2,6 @@ import { sanitizeFileBaseName } from '../core/names.ts';
 import {
   asRecord,
   FRAME_SCOPES,
-  frameScopeField,
   pickEnum,
   selectedFrames,
   type FrameScope,
@@ -34,6 +33,7 @@ export const binaryExporter: Exporter<BinaryOptions> = {
   labelKey: 'exporter.binary',
   descriptionKey: 'exporter.binary.description',
   category: 'data',
+  contents: ['frame', 'selection', 'animation'],
   stability: 'stable',
   extension: '.bin',
   orientation: 'rows',
@@ -56,7 +56,6 @@ export const binaryExporter: Exporter<BinaryOptions> = {
 
   fields() {
     return [
-      frameScopeField(),
       {
         kind: 'select',
         key: 'packing',

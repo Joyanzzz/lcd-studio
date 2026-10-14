@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { newProject, openProject, saveProject } from './app-actions.ts';
 import { useEditor, usePreferences, useServices } from './app-context.tsx';
-import {
-  NewProjectDialog,
-  HelpDialog,
-  SettingsDialog,
-  UnsavedDialog,
-} from './components/Dialogs.tsx';
-import { MainToolbar } from './components/MainToolbar.tsx';
+import { CommandsProvider, type DialogId } from './commands.tsx';
+import { CgramFitDialog } from './components/CgramFitDialog.tsx';
+import { ConvertDialog } from './components/ConvertDialog.tsx';
+import { DiagnosticsDialog } from './components/DiagnosticsDialog.tsx';
+import { HelpDialog, SettingsDialog, UnsavedDialog } from './components/Dialogs.tsx';
+import { NewProjectWizard } from './components/ProjectSetup.tsx';
+import { ExportDialog } from './components/ExportDialog.tsx';
+import { MenuBar, type Menu } from './components/MenuBar.tsx';
 import { PixelIcon } from './components/PixelIcon.tsx';
+import { ProjectSettingsDialog } from './components/ProjectSettingsDialog.tsx';
 import { SidePanels, type PanelId } from './components/SidePanels.tsx';
 import { Stage } from './components/Stage.tsx';
 import { Timeline } from './components/Timeline.tsx';
@@ -17,9 +19,11 @@ import { Toasts } from './components/Toasts.tsx';
 import { ToolBox, TOOL_KEYS } from './components/ToolBox.tsx';
 import { useI18n } from './i18n/index.tsx';
 import { onUpdateAvailable, applyUpdate } from './pwa.ts';
+import { useProfile } from './hooks.ts';
 import { TOOLS } from './state/editor-store.ts';
 
-type Section = 'tools' | 'panels' | 'timeline';
+/** En pantallas estrechas el panel lateral empieza retraído. */
+const wideQuery = '(min-width: 1024px)';
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -41,7 +45,7 @@ function useSystemDark(): boolean {
 
 export function App() {
   const services = useServices();
-  const { store, platform, autosave, toasts } = services;
+  const { store, platform, autosave, toasts, limitNotice } = services;
   const { tk, locale } = useI18n();
   const prefs = usePreferences();
   const systemDark = useSystemDark();
@@ -49,8 +53,16 @@ export function App() {
   const projectName = useEditor((s) => s.project.name);
   const fileDirty = useEditor((s) => s.fileDirty);
   const [panel, setPanel] = useState<PanelId>('draw');
-  const [section, setSection] = useState<Section>('tools');
-  const [dialog, setDialog] = useState<'new' | 'help' | 'settings' | null>(null);
+  const [sideOpen, setSideOpen] = useState(
+    () => typeof matchMedia === 'undefined' || matchMedia(wideQuery).matches,
+  );
+  const profile = useProfile();
+  const hasSelection = useEditor((s) => s.selection !== null);
+  const hasClipboard = useEditor((s) => s.clipboard !== null);
+  const canUndo = useEditor((s) => s.canUndo);
+  const canRedo = useEditor((s) => s.canRedo);
+  const [dialog, setDialog] = useState<DialogId | null>(null);
+  const commands = useMemo(() => ({ openDialog: (id: DialogId) => setDialog(id) }), []);
   const [unsaved, setUnsaved] = useState<((choice: 'save' | 'discard' | 'cancel') => void) | null>(
     null,
   );
@@ -73,10 +85,19 @@ export function App() {
   useEffect(
     () =>
       store.onEvent((event) => {
-        toasts.push(event.type === 'error' ? 'error' : 'warning', event.code, event.params);
+        if (event.type === 'limit') {
+          limitNotice.handle(event.phase);
+          return;
+        }
+        toasts.push(
+          event.type === 'error' ? 'error' : (event.kind ?? 'warning'),
+          event.code,
+          event.params,
+        );
       }),
-    [store, toasts],
+    [store, toasts, limitNotice],
   );
+  useEffect(() => () => limitNotice.dismiss(), [limitNotice]);
 
   /** Pregunta qué hacer con los cambios sin guardar en archivo. */
   const confirmUnsaved = useCallback(
@@ -167,6 +188,11 @@ export function App() {
           openRef.current();
           return;
         }
+        if (key === 'e') {
+          e.preventDefault();
+          setDialog('export');
+          return;
+        }
         if (typing) return;
         if (key === 'z') {
           e.preventDefault();
@@ -217,7 +243,8 @@ export function App() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (store.deleteSelection()) e.preventDefault();
       } else if (e.key === 'Escape') {
-        if (store.getState().preview) store.setPreview(null);
+        if (limitNotice.getState().visible) limitNotice.dismiss();
+        else if (store.getState().preview) store.setPreview(null);
         else store.deselect();
       } else if (e.key.startsWith('Arrow') && onBody) {
         e.preventDefault();
@@ -228,76 +255,232 @@ export function App() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [store, services, platform.kind, toasts, guarded]);
+  }, [store, services, platform.kind, toasts, guarded, limitNotice]);
+
+  const desktop = platform.kind === 'desktop';
+  const menus: Menu[] = [
+    {
+      id: 'file',
+      labelKey: 'menu.file',
+      items: [
+        {
+          id: 'new',
+          labelKey: 'menu.file.new',
+          icon: 'new',
+          shortcut: 'Ctrl+Alt+N',
+          run: () => void guarded(() => setDialog('new')),
+        },
+        {
+          id: 'open',
+          labelKey: 'menu.file.open',
+          icon: 'open',
+          shortcut: 'Ctrl+O',
+          run: handleOpen,
+        },
+        {
+          id: 'save',
+          labelKey: desktop ? 'menu.file.save' : 'menu.file.download',
+          icon: 'save',
+          shortcut: 'Ctrl+S',
+          separatorBefore: true,
+          run: () => void saveProject(services, 'save'),
+        },
+        {
+          id: 'saveAs',
+          labelKey: 'menu.file.saveAs',
+          icon: 'saveAs',
+          shortcut: 'Ctrl+Shift+S',
+          hidden: !desktop,
+          run: () => void saveProject(services, 'saveAs'),
+        },
+        {
+          id: 'settings',
+          labelKey: 'menu.file.preferences',
+          icon: 'settings',
+          separatorBefore: true,
+          run: () => setDialog('settings'),
+        },
+      ],
+    },
+    {
+      id: 'edit',
+      labelKey: 'menu.edit',
+      items: [
+        {
+          id: 'undo',
+          labelKey: 'toolbar.undo',
+          icon: 'undo',
+          shortcut: 'Ctrl+Z',
+          disabled: !canUndo,
+          run: () => store.undo(),
+        },
+        {
+          id: 'redo',
+          labelKey: 'toolbar.redo',
+          icon: 'redo',
+          shortcut: 'Ctrl+Y',
+          disabled: !canRedo,
+          run: () => store.redo(),
+        },
+        {
+          id: 'cut',
+          labelKey: 'draw.cut',
+          shortcut: 'Ctrl+X',
+          separatorBefore: true,
+          disabled: !hasSelection,
+          run: () => store.cut() && toasts.push('info', 'toast.cut'),
+        },
+        {
+          id: 'copy',
+          labelKey: 'draw.copy',
+          shortcut: 'Ctrl+C',
+          disabled: !hasSelection,
+          run: () => store.copy() && toasts.push('info', 'toast.copied'),
+        },
+        {
+          id: 'paste',
+          labelKey: 'draw.paste',
+          shortcut: 'Ctrl+V',
+          disabled: !hasClipboard,
+          run: () => store.paste(),
+        },
+        {
+          id: 'selectAll',
+          labelKey: 'draw.selectAll',
+          shortcut: 'Ctrl+A',
+          separatorBefore: true,
+          run: () => store.selectAll(),
+        },
+        {
+          id: 'deselect',
+          labelKey: 'draw.deselect',
+          disabled: !hasSelection,
+          run: () => store.deselect(),
+        },
+      ],
+    },
+    {
+      id: 'project',
+      labelKey: 'menu.project',
+      items: [
+        {
+          id: 'projectSettings',
+          labelKey: 'menu.project.settings',
+          icon: 'settings',
+          run: () => setDialog('projectSettings'),
+        },
+        {
+          id: 'convert',
+          labelKey: 'menu.project.convert',
+          icon: 'lcd',
+          run: () => setDialog('convert'),
+        },
+        {
+          id: 'cgramFit',
+          labelKey: 'draw.cgramFit',
+          separatorBefore: true,
+          hidden: profile.kind !== 'character',
+          run: () => setDialog('cgramFit'),
+        },
+        {
+          id: 'diagnostics',
+          labelKey: 'menu.project.diagnostics',
+          separatorBefore: true,
+          hidden: profile.kind !== 'led-matrix',
+          run: () => setDialog('diagnostics'),
+        },
+      ],
+    },
+    {
+      id: 'export',
+      labelKey: 'menu.export',
+      items: [
+        {
+          id: 'export',
+          labelKey: 'menu.export.wizard',
+          icon: 'export',
+          shortcut: 'Ctrl+E',
+          run: () => setDialog('export'),
+        },
+      ],
+    },
+    {
+      id: 'help',
+      labelKey: 'menu.help',
+      items: [
+        { id: 'help', labelKey: 'menu.help.shortcuts', icon: 'help', run: () => setDialog('help') },
+      ],
+    },
+  ];
 
   return (
-    <div className="app" data-section={section}>
-      <a className="skip-link" href="#editor">
-        {tk('app.skipToEditor')}
-      </a>
-      <TitleBar resolvedTheme={resolvedTheme} />
-      <div>
-        {updateReady ? (
-          <div className="update-bar" role="alert">
-            <PixelIcon name="info" />
-            <span>{waitingSave ? tk('dialog.update.waitSave') : tk('dialog.update.message')}</span>
-            <button
-              type="button"
-              className="btn primary"
-              onClick={() => void doUpdate()}
-              disabled={waitingSave}
-            >
-              {tk('dialog.update.reload')}
-            </button>
-            <button type="button" className="btn" onClick={() => setUpdateReady(false)}>
-              {tk('dialog.update.later')}
-            </button>
-          </div>
-        ) : null}
-        <MainToolbar
-          onNew={() => void guarded(() => setDialog('new'))}
-          onOpen={handleOpen}
-          onSave={() => void saveProject(services, 'save')}
-          onSaveAs={() => void saveProject(services, 'saveAs')}
-          onSettings={() => setDialog('settings')}
-          onHelp={() => setDialog('help')}
+    <CommandsProvider commands={commands}>
+      <div className="app" data-side={sideOpen ? 'open' : 'closed'}>
+        <a className="skip-link" href="#editor">
+          {tk('app.skipToEditor')}
+        </a>
+        <TitleBar resolvedTheme={resolvedTheme} />
+        <div>
+          {updateReady ? (
+            <div className="update-bar" role="alert">
+              <PixelIcon name="info" />
+              <span>
+                {waitingSave ? tk('dialog.update.waitSave') : tk('dialog.update.message')}
+              </span>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void doUpdate()}
+                disabled={waitingSave}
+              >
+                {tk('dialog.update.reload')}
+              </button>
+              <button type="button" className="btn" onClick={() => setUpdateReady(false)}>
+                {tk('dialog.update.later')}
+              </button>
+            </div>
+          ) : null}
+          <MenuBar menus={menus} />
+        </div>
+        <main className="workspace">
+          <ToolBox />
+          <Stage sideOpen={sideOpen} onToggleSide={() => setSideOpen((o) => !o)} />
+          <SidePanels
+            active={panel}
+            onChange={(id) => {
+              setPanel(id);
+              setSideOpen(true);
+            }}
+            open={sideOpen}
+            onClose={() => setSideOpen(false)}
+          />
+        </main>
+        <Timeline />
+        <NewProjectWizard
+          open={dialog === 'new'}
+          onClose={() => setDialog(null)}
+          onCreate={(options) => {
+            if (newProject(services, options)) setDialog(null);
+          }}
         />
+        <ProjectSettingsDialog
+          open={dialog === 'projectSettings'}
+          onClose={() => setDialog(null)}
+        />
+        <ExportDialog open={dialog === 'export'} onClose={() => setDialog(null)} />
+        <ConvertDialog open={dialog === 'convert'} onClose={() => setDialog(null)} />
+        <DiagnosticsDialog open={dialog === 'diagnostics'} onClose={() => setDialog(null)} />
+        <SettingsDialog open={dialog === 'settings'} onClose={() => setDialog(null)} />
+        <HelpDialog open={dialog === 'help'} onClose={() => setDialog(null)} />
+        <UnsavedDialog
+          open={unsaved !== null}
+          onSave={() => unsaved?.('save')}
+          onDiscard={() => unsaved?.('discard')}
+          onCancel={() => unsaved?.('cancel')}
+        />
+        <CgramFitDialog open={dialog === 'cgramFit'} onClose={() => setDialog(null)} />
+        <Toasts />
       </div>
-      <main className="workspace">
-        <ToolBox />
-        <Stage />
-        <SidePanels active={panel} onChange={setPanel} />
-      </main>
-      <Timeline />
-      <nav className="mobile-nav" aria-label={tk('mobile.nav')}>
-        {(['tools', 'panels', 'timeline'] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            className="btn"
-            aria-pressed={section === s}
-            onClick={() => setSection(s)}
-          >
-            {tk(`mobile.${s}`)}
-          </button>
-        ))}
-      </nav>
-      <NewProjectDialog
-        open={dialog === 'new'}
-        onClose={() => setDialog(null)}
-        onCreate={(options) => {
-          if (newProject(services, options)) setDialog(null);
-        }}
-      />
-      <SettingsDialog open={dialog === 'settings'} onClose={() => setDialog(null)} />
-      <HelpDialog open={dialog === 'help'} onClose={() => setDialog(null)} />
-      <UnsavedDialog
-        open={unsaved !== null}
-        onSave={() => unsaved?.('save')}
-        onDiscard={() => unsaved?.('discard')}
-        onCancel={() => unsaved?.('cancel')}
-      />
-      <Toasts />
-    </div>
+    </CommandsProvider>
   );
 }

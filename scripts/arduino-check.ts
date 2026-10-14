@@ -12,11 +12,13 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ledDiagnosticFrames } from '../src/core/led-diagnostics.ts';
 import {
   createFrame,
   createProject,
   insertFrames,
   replaceFramePixels,
+  setDevice,
   setLoopMode,
   type LoopMode,
   type Project,
@@ -99,6 +101,30 @@ function charProject(
       1,
       Array.from({ length: frames - 1 }, (_, i) => createFrame(make(i + 1), 120)),
     );
+  return setLoopMode(p, mode);
+}
+
+/** Matriz 8×8 con los patrones de diagnóstico y la orientación/cableado indicados. */
+function ledProject(
+  mode: LoopMode,
+  rotation: 0 | 90 | 180 | 270,
+  wiring: 'rows-msb-left' | 'rows-lsb-left' | 'cols-msb-top' | 'cols-lsb-top',
+  frames = ledDiagnosticFrames().length,
+): Project {
+  let p = createProject({ name: 'Prueba', profileId: 'max7219-8x8' });
+  const diag = ledDiagnosticFrames().slice(0, frames);
+  p = replaceFramePixels(p, 0, diag[0]!.pixels);
+  if (diag.length > 1)
+    p = insertFrames(
+      p,
+      1,
+      diag.slice(1).map((f) => createFrame(f.pixels, f.durationMs)),
+    );
+  p = setDevice(p, {
+    connection: 'max7219-spi',
+    codeTarget: 'arduino-max7219',
+    matrix: { rotation, wiring, brightness: 6 },
+  });
   return setLoopMode(p, mode);
 }
 
@@ -216,6 +242,45 @@ cases.push(
     wrapper: headerWrapper(
       'pages',
       '  const uint8_t *p = (const uint8_t *)pgm_read_ptr(&animacion_frames[0]);\n  sink = pgm_read_byte(p + ANIMACION_PAGES * ANIMACION_WIDTH - 1);',
+    ),
+  },
+  {
+    name: 'max7219_loop_uno',
+    exporter: 'arduino-max7219',
+    project: ledProject('loop', 0, 'rows-msb-left'),
+    options: { identifier: 'animacion' },
+    board: 'arduino-uno',
+  },
+  {
+    name: 'max7219_once_nano_r90',
+    exporter: 'arduino-max7219',
+    project: ledProject('once', 90, 'cols-msb-top'),
+    options: { board: 'arduino-nano', identifier: 'animacion', pins: { din: 2, clk: 3, cs: 4 } },
+    board: 'arduino-nano',
+  },
+  {
+    name: 'max7219_pingpong_mega_r270',
+    exporter: 'arduino-max7219',
+    project: ledProject('pingpong', 270, 'rows-lsb-left'),
+    options: { board: 'arduino-mega2560', identifier: 'animacion' },
+    board: 'arduino-mega2560',
+  },
+  {
+    name: 'max7219_single_r180',
+    exporter: 'arduino-max7219',
+    project: ledProject('loop', 180, 'cols-lsb-top', 1),
+    options: { identifier: 'animacion' },
+    board: 'arduino-uno',
+  },
+  {
+    name: 'max7219_registers_header',
+    exporter: 'max7219-registers',
+    project: ledProject('loop', 0, 'rows-msb-left'),
+    options: { format: 'c-array', identifier: 'animacion' },
+    board: 'arduino-uno',
+    wrapper: headerWrapper(
+      'max7219',
+      '  sink = animacion_digits[ANIMACION_FRAME_COUNT * 8u - 1] + animacion_durations_ms[0];',
     ),
   },
   {

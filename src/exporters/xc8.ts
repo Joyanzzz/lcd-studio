@@ -12,7 +12,6 @@ import {
 import {
   asRecord,
   FRAME_SCOPES,
-  frameScopeField,
   pickEnum,
   pickInt,
   pickString,
@@ -90,6 +89,7 @@ export const xc8Exporter: Exporter<Xc8Options> = {
   labelKey: 'exporter.pic-xc8',
   descriptionKey: 'exporter.pic-xc8.description',
   category: 'code',
+  contents: ['frame', 'animation'],
   stability: 'experimental',
   extension: '.zip',
   orientation: 'cells',
@@ -122,15 +122,21 @@ export const xc8Exporter: Exporter<Xc8Options> = {
         d.device,
       ),
       oscillatorHz: pickInt(r['oscillatorHz'], 1, 100_000_000, d.oscillatorHz),
-      bus: pickEnum(r['bus'], ['4', '8'] as const, d.bus),
+      // La conexión del proyecto fija el bus; sin conexión se elige aquí.
+      bus:
+        ctx.project.device.connection === 'hd44780-8bit'
+          ? '8'
+          : ctx.project.device.connection === 'hd44780-4bit'
+            ? '4'
+            : pickEnum(r['bus'], ['4', '8'] as const, d.bus),
       pins,
       dataPort: pickEnum(r['dataPort'], ['A', 'B', 'C', 'D', 'E'] as const, 'D'),
     };
   },
 
-  fields(_ctx, options) {
+  fields(ctx, options) {
+    const busFixed = ctx.project.device.connection !== null;
     const fields: OptionField[] = [
-      frameScopeField(),
       {
         kind: 'select',
         key: 'device',
@@ -149,10 +155,12 @@ export const xc8Exporter: Exporter<Xc8Options> = {
         kind: 'select',
         key: 'bus',
         labelKey: 'export.option.bus',
-        choices: [
-          { value: '4', labelKey: 'export.bus.4' },
-          { value: '8', labelKey: 'export.bus.8' },
-        ],
+        // Con la conexión configurada en el proyecto solo queda el bus elegido.
+        choices: (busFixed ? [options.bus] : (['4', '8'] as const)).map((b) => ({
+          value: b,
+          labelKey: `export.bus.${b}`,
+        })),
+        ...(busFixed ? { hintKey: 'export.hint.busFromProject' } : {}),
       },
     ];
     for (const p of usedPins(options)) {

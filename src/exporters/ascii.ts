@@ -3,7 +3,6 @@ import { textFile } from './shared/c-source.ts';
 import {
   asRecord,
   FRAME_SCOPES,
-  frameScopeField,
   pickEnum,
   selectedFrames,
   validateTextSize,
@@ -26,6 +25,7 @@ export const asciiExporter: Exporter<AsciiOptions> = {
   labelKey: 'exporter.ascii',
   descriptionKey: 'exporter.ascii.description',
   category: 'data',
+  contents: ['frame', 'selection', 'animation'],
   stability: 'stable',
   extension: '.txt',
   orientation: 'text',
@@ -42,7 +42,7 @@ export const asciiExporter: Exporter<AsciiOptions> = {
   },
 
   fields() {
-    return [frameScopeField()];
+    return [];
   },
 
   estimate(ctx, options) {

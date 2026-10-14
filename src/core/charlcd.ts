@@ -65,6 +65,20 @@ export function romGlyphMap(romCharset: RomCharsetId): ReadonlyMap<string, numbe
   return map;
 }
 
+const freeCache = new Map<RomCharsetId, readonly Glyph[]>();
+
+/** Glifos que no consumen ranura CGRAM: el espacio y los del juego ROM. */
+export function freeGlyphs(romCharset: RomCharsetId): readonly Glyph[] {
+  const cached = freeCache.get(romCharset);
+  if (cached) return cached;
+  const glyphs: Glyph[] = [new Uint8Array(8)];
+  for (const key of romGlyphMap(romCharset).keys()) {
+    glyphs.push(Uint8Array.from(key.split(',').map(Number)));
+  }
+  freeCache.set(romCharset, glyphs);
+  return glyphs;
+}
+
 export interface FrameCellAnalysis {
   /** Glifos propios distintos en orden de lectura (fila a fila). */
   readonly glyphs: readonly Glyph[];

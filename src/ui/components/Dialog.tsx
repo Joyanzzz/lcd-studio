@@ -63,6 +63,10 @@ export function Dialog(props: {
     return () => {
       dialog.removeEventListener('cancel', onCancel);
       dialog.removeEventListener('close', onClosed);
+      // Diálogo desmontado estando abierto (ventanas que solo existen mientras
+      // están abiertas): el evento `close` no llega, así que el foco se
+      // devuelve aquí. Si el nodo sigue conectado no es un desmontaje real.
+      if (!dialog.isConnected) onClosed();
     };
   }, []);
 

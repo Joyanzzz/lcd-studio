@@ -11,6 +11,8 @@ export interface CanvasLayout {
   readonly gapX: number;
   readonly gapY: number;
   readonly charMode: boolean;
+  /** Matriz de LEDs: cada píxel se dibuja como un LED redondo. */
+  readonly ledMode: boolean;
   readonly pixelWidth: number;
   readonly pixelHeight: number;
   /** Tamaño del lienzo en píxeles CSS. */
@@ -37,6 +39,7 @@ export function computeLayout(
     gapX,
     gapY,
     charMode,
+    ledMode: profile.kind === 'led-matrix',
     pixelWidth,
     pixelHeight,
     width: pad * 2 + pixelWidth * z + (cols - 1) * gapX,

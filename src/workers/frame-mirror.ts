@@ -26,6 +26,7 @@ export interface MirroredProject {
   readonly appearance: unknown;
   readonly loopMode: string;
   readonly romCharset: string;
+  readonly device: unknown;
   readonly frames: readonly MirroredFrame[];
 }
 
@@ -61,6 +62,7 @@ export class FrameMirrorClient {
         appearance: project.appearance,
         loopMode: project.loopMode,
         romCharset: project.romCharset,
+        device: project.device,
         frames,
       },
       transfer,

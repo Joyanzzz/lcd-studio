@@ -41,6 +41,7 @@ export function createProjectHandler(): (request: ProjectRequest) => Handled {
               appearance: p.appearance,
               loopMode: p.loopMode,
               romCharset: p.romCharset,
+              device: p.device,
               frames,
             },
           },

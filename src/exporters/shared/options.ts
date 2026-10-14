@@ -31,19 +31,8 @@ export function pickString(value: unknown, maxLength: number, fallback: string):
 
 export type FrameScope = 'all' | 'current';
 
+/** Alcance: lo fija el paso «Contenido» del asistente de exportación. */
 export const FRAME_SCOPES: readonly FrameScope[] = ['all', 'current'];
-
-export function frameScopeField(): OptionField {
-  return {
-    kind: 'select',
-    key: 'frames',
-    labelKey: 'export.option.frames',
-    choices: [
-      { value: 'all', labelKey: 'export.frames.all' },
-      { value: 'current', labelKey: 'export.frames.current' },
-    ],
-  };
-}
 
 /** Índices de fotograma a exportar según el alcance. */
 export function selectedFrames(ctx: ExportContext, scope: FrameScope): number[] {

@@ -8,6 +8,13 @@ import type { DisplayProfile } from '../device-profiles/index.ts';
  */
 
 export type ExportCategory = 'code' | 'data' | 'image';
+
+/**
+ * Contenido que se exporta: el fotograma actual, la selección rectangular del
+ * fotograma actual o la animación completa. Cada exportador declara cuáles
+ * admite; el asistente no ofrece combinaciones incompatibles.
+ */
+export type ExportContent = 'frame' | 'selection' | 'animation';
 export type Stability = 'stable' | 'experimental';
 
 export interface ExportFile {
@@ -99,6 +106,7 @@ export interface Exporter<O extends object = Record<string, unknown>> {
   readonly labelKey: string;
   readonly descriptionKey: string;
   readonly category: ExportCategory;
+  readonly contents: readonly ExportContent[];
   readonly stability: Stability;
   /** Extensión del archivo principal. */
   readonly extension: string;

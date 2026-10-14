@@ -51,6 +51,14 @@ Decisiones importantes tomadas durante la reconstrucción, por fase.
 - Lienzo con modo de teclado (cursor de píxel) y región `aria-live`.
 - Internacionalización (añadida en mitad del proyecto, sin conflictos): capa
   transversal es/en; el contenido exportado no depende del idioma.
+- Ajuste a 8 caracteres (añadido tras la 1.0.0): para aprovechar todas las
+  celdas en dibujo libre sin tocar los exportadores, el ajuste a la CGRAM es
+  una herramienta de edición explícita con vista previa y deshacible, no una
+  sustitución automática al exportar. Se descartó multiplexar ranuras dentro
+  de un fotograma: el cristal líquido promedia y se ve borroso o parpadea.
+  Algoritmo determinista: selección voraz de 8 centros entre los glifos
+  existentes y refinamiento por mayoría de bits ponderada (máximo 16 pasadas);
+  en empate se prefieren destinos que no gastan ranura (espacio, ROM elegida).
 
 ## Fase 7 — Imágenes
 
@@ -94,3 +102,46 @@ Decisiones importantes tomadas durante la reconstrucción, por fase.
 - Toolchain Rust `x86_64-pc-windows-gnu` en el equipo de desarrollo (no había
   MSVC Build Tools ni permisos de administrador); CI usa el toolchain MSVC
   estándar de GitHub Actions.
+
+## Entrega 2 — Consolidación del editor y matriz LED
+
+- **Límite CGRAM en la lógica, no en la interfaz**: `validateTransition`
+  valida el resultado completo en `EditorStore.commit`, por donde pasan todas
+  las ediciones, importaciones y atajos. Rechazar es atómico (sin dibujo
+  parcial, historial, marca de modificado ni autoguardado). Se descartó
+  bloquear celdas en la interfaz: repetir un patrón existente debe seguir
+  siendo posible en cualquier celda, así que la atenuación es solo
+  orientativa.
+- **Proyectos en reparación**: se abren completos; se aceptan ediciones que no
+  aumentan los patrones. No se ajustan solos (eso sería eliminar contenido en
+  silencio); el ajuste es una herramienta explícita.
+- **Aviso único** en un controlador propio (`LimitNotice`) con temporizador
+  centralizado y limpieza al cambiar de proyecto o desmontar; la región viva
+  solo recibe texto al aparecer para no repetir anuncios.
+- **Patrón compartido**: la elección «copia» o «todas las apariciones» se hace
+  antes de dibujar y el lienzo muestra el resultado durante el gesto. Si una
+  operación edita de forma distinta varias apariciones del mismo patrón, ese
+  patrón se trata como copia (no hay un resultado único).
+- **Menús y ventanas** en lugar de pestañas de Proyecto y Exportar: dibujo y
+  animación no se separan en modos; el panel lateral solo tiene Dibujo e
+  Imagen y se retrae (cajón en pantallas pequeñas) sin desmontarse.
+- **Línea de tiempo**: no se fuerza a que quepan todos los fotogramas (la
+  referencia visual lo pedía, la especificación prevalece): ajuste con mínimo
+  legible de 36 px y desplazamiento. Miniaturas uniformes para no sugerir que
+  la anchura es la duración.
+- **Iconos**: se conservan los iconos pixel-art propios (estilo Paint, sin
+  recursos ajenos); en tema oscuro se genera automáticamente una capa de
+  contorno (bordes + trazos negros interiores) en blanco.
+- **Formato v3** con `device`; v2 se migra sin pérdida. Las combinaciones
+  válidas de conexión y destino viven en `capabilities.ts`; el bus de 4/8
+  bits es una conexión del HD44780.
+- **Exportación**: la selección se exporta como imagen o datos (no código);
+  el ZIP es un contenedor. Las opciones se recuerdan solo al guardar.
+- **MAX7219**: el giro describe el módulo montado y se aplica solo al
+  exportar; el dibujo nunca se gira por él. Cuatro perfiles de cableado
+  explícitos en vez de suponer el de un fabricante. Boceto sin bibliotecas
+  (`shiftOut`) para no depender de LedControl/MD_MAX72xx y poder compilarlo en
+  CI sin instalar nada. Patrones de diagnóstico como fotogramas normales.
+- **Siete segmentos**: solo se deja `content: 'raster'` en los perfiles y la
+  tabla de capacidades extensible; no se trata un display de segmentos como
+  raster.

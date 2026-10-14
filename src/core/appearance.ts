@@ -30,6 +30,9 @@ export const PALETTES: readonly Palette[] = Object.freeze([
   p('oled', '#050505', '#000000', '#0c0c0c', '#f4f4f4'),
   p('oled-blue', '#050505', '#000000', '#07101a', '#47b4ff'),
   p('amber', '#0a0602', '#120a02', '#1a0f03', '#ffa81f'),
+  // Matriz de LEDs: el «apagado» es el LED rojo sin corriente.
+  p('led-red', '#0e0e10', '#050506', '#2c0d0b', '#ff3b28'),
+  p('led-green', '#0e0e10', '#050506', '#0c2410', '#3cff5a'),
 ]);
 
 function p(id: string, frame: string, screen: string, off: string, on: string): Palette {
@@ -76,8 +79,8 @@ export function getPalette(id: string): Palette | undefined {
   return PALETTES.find((pal) => pal.id === id);
 }
 
-export function defaultAppearanceFor(kind: 'character' | 'graphic'): Appearance {
-  return { palette: kind === 'character' ? 'lm016l' : 'oled' };
+export function defaultAppearanceFor(kind: 'character' | 'graphic' | 'led-matrix'): Appearance {
+  return { palette: kind === 'character' ? 'lm016l' : kind === 'led-matrix' ? 'led-red' : 'oled' };
 }
 
 /** Colores efectivos de una apariencia. */

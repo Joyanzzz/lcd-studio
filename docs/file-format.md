@@ -1,15 +1,28 @@
 # Formato de proyecto `.lcdstudio.json`
 
-Archivo de texto UTF-8 con un único objeto JSON. Esquema actual: **versión 2**.
-Implementación: `src/core/project-format.ts` (validación con Zod) y
-`src/core/migrate-v1.ts` (migración desde el prototipo).
+Archivo de texto UTF-8 con un único objeto JSON. Esquema actual: **versión 3**.
+Implementación: `src/core/project-format.ts` (validación con Zod),
+`src/core/device.ts` (configuración del dispositivo) y `src/core/migrate-v1.ts`
+(migración desde el prototipo).
+
+Historial del esquema:
+
+| Versión | Cambios                                                                                  |
+| ------- | ---------------------------------------------------------------------------------------- |
+| v1      | Prototipo de un solo archivo. Se migra al abrirlo (ver abajo).                            |
+| v2      | Perfil, apariencia, ROM, reproducción y fotogramas.                                       |
+| v3      | Añade `device`: conexión, destino de código y, en matrices de LEDs, giro, cableado, brillo. |
+
+Los archivos v1 y v2 se abren completos (nunca se descarta contenido) y se
+guardan como v3. Un archivo v3 **no** se abre con LCD Studio 1.0.0 (que solo
+conoce v2): la aplicación antigua lo rechaza con «versión más reciente».
 
 ## Ejemplo
 
 ```json
 {
   "format": "lcd-studio-project",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generator": { "name": "LCD Studio", "version": "1.0.0" },
   "name": "Mi animación",
   "profile": "hd44780-16x2",
@@ -17,6 +30,11 @@ Implementación: `src/core/project-format.ts` (validación con Zod) y
   "height": 16,
   "appearance": { "palette": "lm016l" },
   "romCharset": "none",
+  "device": {
+    "connection": "hd44780-4bit",
+    "codeTarget": "arduino-liquidcrystal",
+    "matrix": null
+  },
   "playback": { "loop": "loop" },
   "pixelEncoding": "bitpack-lsb-rowmajor",
   "frames": [{ "durationMs": 200, "pixels": "AAAA…" }]
@@ -28,13 +46,16 @@ Implementación: `src/core/project-format.ts` (validación con Zod) y
 | Campo           | Tipo                       | Reglas                                                                                        |
 | --------------- | -------------------------- | --------------------------------------------------------------------------------------------- |
 | `format`        | texto                      | Exactamente `lcd-studio-project`.                                                             |
-| `schemaVersion` | entero                     | `2`. Un número mayor se rechaza con «creado con una versión más reciente».                    |
+| `schemaVersion` | entero                     | `3` (también se aceptan `2`, migrado). Un número mayor se rechaza con «creado con una versión más reciente». |
 | `generator`     | objeto                     | `name` (1–64) y `version` (1–32). Solo informativo.                                           |
 | `name`          | texto                      | 1–64 puntos de código, sin caracteres de control ni espacios al inicio o al final.            |
 | `profile`       | texto                      | Identificador de un perfil existente (`docs/device-profiles.md`).                             |
 | `width`/`height`| enteros                    | 1–512. Deben coincidir con el perfil (salvo `graphic-custom`, que los define).                |
 | `appearance`    | objeto                     | `{ "palette": "<id>" }` o `{ "palette": "custom", "colors": { frame, screen, off, on } }` con colores `#rrggbb` en minúsculas. |
-| `romCharset`    | texto                      | `none` o `hd44780-a00`. Las pantallas gráficas solo admiten `none`.                           |
+| `romCharset`    | texto                      | `none` o `hd44780-a00`. Solo los LCD de caracteres admiten otra cosa que `none`.              |
+| `device.connection` | texto o `null`         | Conexión admitida por el perfil (tabla en `docs/device-profiles.md`) o `null` (sin configurar). |
+| `device.codeTarget` | texto o `null`         | Exportador de código compatible con el perfil y la conexión, o `null` («solo diseño»).        |
+| `device.matrix` | objeto o `null`            | Solo matrices de LEDs (obligatorio en ellas): `rotation` 0/90/180/270, `wiring` (`rows-msb-left`, `rows-lsb-left`, `cols-msb-top`, `cols-lsb-top`) y `brightness` 0–15. En otras pantallas debe ser `null`. |
 | `playback.loop` | texto                      | `loop`, `pingpong` u `once`.                                                                  |
 | `pixelEncoding` | texto                      | Exactamente `bitpack-lsb-rowmajor`.                                                           |
 | `frames`        | lista                      | 1–240 elementos.                                                                              |
@@ -63,7 +84,12 @@ Antes de modificar el proyecto abierto se comprueba, en este orden:
 7. Memoria esperada (`ancho × alto × fotogramas`) antes de reservarla.
 8. Longitud exacta de cada base64, base64 canónica, longitud exacta del
    bitmap y bits de relleno a cero.
-9. Invariantes finales del proyecto.
+9. Invariantes finales del proyecto, incluida la coherencia de `device` con
+   el perfil (conexión, destino y matriz).
+
+Un LCD de caracteres con fotogramas de más de 8 caracteres propios **sí se
+abre** (proyecto en reparación): el límite se aplica a las ediciones y a la
+exportación de código, no a la carga.
 
 Si algo falla, se informa el primer error con su ruta (`frames.3.pixels`) y
 **no se abre nada**. El análisis se ejecuta en un Web Worker.
@@ -72,6 +98,13 @@ Si algo falla, se informa el primer error con su ruta (`frames.3.pixels`) y
 
 La serialización es determinista: el mismo proyecto produce los mismos bytes
 (orden fijo de claves, sangría de 2 espacios, salto de línea final `\n`).
+
+## Migración desde v2
+
+Un documento v2 se valida con el esquema v2 (sin la clave `device`, que en v2
+no existe y se rechaza) y se abre con `device = { connection: null,
+codeTarget: null, matrix: null }`. Se muestra el aviso `migration.fromV2`.
+Al guardar se escribe v3.
 
 ## Migración desde v1 (prototipo)
 

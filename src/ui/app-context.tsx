@@ -7,12 +7,15 @@ import type { ExportWorkerClient } from '../workers/export-client.ts';
 import type { ImageWorkerClient } from '../workers/image-client.ts';
 import type { ProjectWorkerClient } from '../workers/project-client.ts';
 import type { EditorState, EditorStore } from './state/editor-store.ts';
+import type { LimitNotice } from './state/limit-notice.ts';
 import type { ToastStore } from './state/toasts.ts';
 
 /** Servicios compartidos por toda la interfaz. */
 export interface AppServices {
   readonly store: EditorStore;
   readonly toasts: ToastStore;
+  /** Aviso único del límite de caracteres propios. */
+  readonly limitNotice: LimitNotice;
   readonly platform: Platform;
   readonly autosave: Autosave;
   readonly recovery: RecoveryStore;

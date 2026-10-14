@@ -14,7 +14,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickBool,
   pickEnum,
@@ -55,6 +54,7 @@ export const liquidCrystalExporter: Exporter<LiquidCrystalOptions> = {
   labelKey: 'exporter.arduino-liquidcrystal',
   descriptionKey: 'exporter.arduino-liquidcrystal.description',
   category: 'code',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.ino',
   orientation: 'cells',
@@ -90,7 +90,6 @@ export const liquidCrystalExporter: Exporter<LiquidCrystalOptions> = {
   fields(_ctx, options) {
     const board = resolveBoard(options.board);
     const fields: OptionField[] = [
-      frameScopeField(),
       boardField(),
       identifierField(),
       {

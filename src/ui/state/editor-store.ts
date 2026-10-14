@@ -1,10 +1,20 @@
 import { type Appearance } from '../../core/appearance.ts';
+import { fitProjectToCgram, type FitScope } from '../../core/cgram-fit.ts';
+import type { Glyph } from '../../core/charlcd.ts';
+import { checkFramePatterns, validateTransition } from '../../core/constraints.ts';
+import { convertProject, type ConvertMode } from '../../core/convert.ts';
+import { ledDiagnosticFrames } from '../../core/led-diagnostics.ts';
+import type { DeviceConfig } from '../../core/device.ts';
 import { AppError, isAppError } from '../../core/errors.ts';
 import { History, projectRetainedBytes } from '../../core/history.ts';
+import {
+  propagateSharedEdits,
+  stampPattern,
+  type SharedEditMode,
+} from '../../core/pattern-edit.ts';
 import { LIMITS } from '../../core/limits.ts';
 import { nextPlaybackStep, type PlaybackState } from '../../core/playback.ts';
 import {
-  changeProfile,
   createFrame,
   deleteFrame,
   duplicateFrame,
@@ -17,13 +27,18 @@ import {
   replaceManyPixels,
   setAllDurations,
   setAppearance,
+  setDevice,
   setFrameDuration,
   setLoopMode,
   setRomCharset,
   type LoopMode,
   type Project,
 } from '../../core/project.ts';
-import { getProfile, type RomCharsetId } from '../../device-profiles/index.ts';
+import {
+  getProfile,
+  type CharacterProfile,
+  type RomCharsetId,
+} from '../../device-profiles/index.ts';
 import { DrawSurface, type DirtyRect, type Symmetry } from '../../engine/draw.ts';
 import { floodFill } from '../../engine/fill.ts';
 import { constrainEnd, type Point } from '../../engine/geometry.ts';
@@ -53,9 +68,25 @@ import {
  * `useSyncExternalStore`.
  */
 
-export type ToolId = 'select' | 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'ellipse' | 'text';
+export type ToolId =
+  'select' | 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'ellipse' | 'text' | 'pattern';
 export const TOOLS: readonly ToolId[] = [
   'select',
+  'pencil',
+  'eraser',
+  'fill',
+  'line',
+  'rect',
+  'ellipse',
+  'text',
+  'pattern',
+];
+
+/** Herramientas que solo tienen sentido en LCD de caracteres. */
+export const CHARACTER_ONLY_TOOLS: readonly ToolId[] = ['pattern'];
+
+/** Herramientas de dibujo a las que se aplica la edición global de patrones compartidos. */
+const PATTERN_AWARE_TOOLS: readonly ToolId[] = [
   'pencil',
   'eraser',
   'fill',
@@ -92,6 +123,10 @@ export interface EditorState {
   readonly text: TextSettings;
   readonly transformAll: boolean;
   readonly wrapShift: boolean;
+  /** LCD de caracteres: editar un patrón compartido crea una copia o cambia todas sus apariciones. */
+  readonly sharedEdit: SharedEditMode;
+  /** Patrón que coloca la herramienta «Colocar patrón». */
+  readonly patternBrush: Glyph | null;
   readonly playing: boolean;
   /** Imagen en vista previa sobre el fotograma actual. */
   readonly preview: Uint8Array | null;
@@ -113,6 +148,8 @@ export interface EditorState {
 export type StoreEvent =
   | {
       readonly type: 'notice';
+      /** Por omisión se muestra como advertencia. */
+      readonly kind?: 'info' | 'success';
       readonly code: string;
       readonly params?: Record<string, string | number>;
     }
@@ -120,6 +157,15 @@ export type StoreEvent =
       readonly type: 'error';
       readonly code: string;
       readonly params?: Record<string, string | number>;
+    }
+  | {
+      /**
+       * Límite de caracteres propios: `active` mientras dura un intento no
+       * permitido, `ended` cuando termina (rechazado) y `cleared` tras una
+       * edición válida o al cambiar de proyecto.
+       */
+      readonly type: 'limit';
+      readonly phase: 'active' | 'ended' | 'cleared';
     };
 
 /** Píxeles en edición (trazo en curso) y región modificada, para redibujar solo lo necesario. */
@@ -139,6 +185,9 @@ interface Stroke {
   readonly moveRect?: Rect;
   readonly copy?: boolean;
   readonly selecting?: boolean;
+  /** Resultado mostrado (con propagación de patrones compartidos) y si viola el límite. */
+  display?: Uint8Array | undefined;
+  blocked?: boolean;
 }
 
 export interface Scheduler {
@@ -183,6 +232,8 @@ export class EditorStore {
       text: { value: 'Hola', scale: 1, advance: 6 },
       transformAll: false,
       wrapShift: true,
+      sharedEdit: 'copy',
+      patternBrush: null,
       playing: false,
       preview: null,
       previewMode: 'replace',
@@ -238,10 +289,24 @@ export class EditorStore {
     };
   }
 
-  /** Aplica un cambio de proyecto registrándolo en el historial. */
-  commit(next: Project, label: string, extra: Partial<EditorState> = {}): void {
+  /**
+   * Aplica un cambio de proyecto registrándolo en el historial. Antes valida el
+   * resultado completo con las restricciones del perfil: si no está permitido
+   * no se aplica nada (ni historial, ni cambios, ni autoguardado) y devuelve
+   * `false`. `unchecked` solo lo usa la conversión de pantalla confirmada.
+   */
+  commit(
+    next: Project,
+    label: string,
+    extra: Partial<EditorState> = {},
+    options: { unchecked?: boolean } = {},
+  ): boolean {
     const previous = this.state.project;
-    if (next === previous) return;
+    if (next === previous) return true;
+    if (!options.unchecked && validateTransition(previous, next)) {
+      this.rejectLimit();
+      return false;
+    }
     const result = this.history.push(previous, next, label);
     if (!result.undoable) this.emit({ type: 'notice', code: 'toast.notUndoable' });
     const current = Math.min(extra.current ?? this.state.current, next.frames.length - 1);
@@ -253,6 +318,14 @@ export class EditorStore {
       revision: this.state.revision + 1,
       ...this.historyPatch(),
     });
+    this.emit({ type: 'limit', phase: 'cleared' });
+    return true;
+  }
+
+  /** Intento rechazado por el límite (fuera de un gesto empieza y termina a la vez). */
+  private rejectLimit(): void {
+    this.emit({ type: 'limit', phase: 'active' });
+    this.emit({ type: 'limit', phase: 'ended' });
   }
 
   /** Ejecuta una operación que puede lanzar `AppError` y la notifica como error. */
@@ -282,9 +355,12 @@ export class EditorStore {
       preview: null,
       cursor: null,
       fileDirty,
+      patternBrush: null,
+      tool: CHARACTER_ONLY_TOOLS.includes(this.state.tool) ? 'pencil' : this.state.tool,
       revision: this.state.revision + 1,
       ...this.historyPatch(),
     });
+    this.emit({ type: 'limit', phase: 'cleared' });
   }
 
   markFileSaved(): void {
@@ -341,26 +417,96 @@ export class EditorStore {
     );
   }
 
+  /**
+   * Aplica en un solo paso de historial los cambios confirmados en la ventana
+   * de configuración del proyecto. Todo o nada: si algo no es válido (o el
+   * mapa ROM elegido dejara fotogramas por encima del límite) no cambia nada.
+   */
+  applyProjectSettings(patch: {
+    name?: string;
+    romCharset?: RomCharsetId;
+    appearance?: Appearance;
+    loopMode?: LoopMode;
+    device?: DeviceConfig;
+  }): boolean {
+    let applied = false;
+    this.attempt(() => {
+      let next = this.state.project;
+      if (patch.name !== undefined && patch.name !== next.name)
+        next = renameProject(next, patch.name);
+      if (patch.romCharset !== undefined && patch.romCharset !== next.romCharset)
+        next = setRomCharset(next, patch.romCharset);
+      if (
+        patch.appearance !== undefined &&
+        JSON.stringify(patch.appearance) !== JSON.stringify(next.appearance)
+      )
+        next = setAppearance(next, patch.appearance);
+      if (patch.loopMode !== undefined && patch.loopMode !== next.loopMode)
+        next = setLoopMode(next, patch.loopMode);
+      if (
+        patch.device !== undefined &&
+        JSON.stringify(patch.device) !== JSON.stringify(next.device)
+      )
+        next = setDevice(next, patch.device);
+      applied = this.commit(next, 'history.projectSettings');
+    });
+    return applied;
+  }
+
   setRomCharset(rom: RomCharsetId): void {
     this.attempt(() => this.commit(setRomCharset(this.state.project, rom), 'history.rom'));
   }
 
-  changeProfile(profileId: string, size?: { width: number; height: number }): boolean {
+  /**
+   * Convierte el proyecto a otra pantalla (Proyecto → Convertir pantalla),
+   * confirmada por el usuario tras ver la vista previa y el informe. Es una
+   * única edición deshacible. Si la nueva pantalla es un LCD de caracteres y
+   * algún fotograma supera el límite, el proyecto queda en reparación (no se
+   * ajusta solo): por eso esta edición se aplica sin la validación del límite.
+   */
+  convertDisplay(
+    profileId: string,
+    size: { width: number; height: number } | undefined,
+    mode: ConvertMode,
+  ): boolean {
     this.stop();
-    return this.attempt(() =>
-      this.commit(changeProfile(this.state.project, profileId, size), 'history.profile', {
-        selection: null,
-        preview: null,
-        cursor: null,
-      }),
-    );
+    let applied = false;
+    this.attempt(() => {
+      const { project } = convertProject(this.state.project, profileId, size, mode);
+      applied = this.commit(
+        project,
+        'history.convert',
+        { selection: null, preview: null, cursor: null, patternBrush: null },
+        { unchecked: true },
+      );
+      if (applied && CHARACTER_ONLY_TOOLS.includes(this.state.tool) && !this.characterProfile)
+        this.set({ tool: 'pencil' });
+    });
+    return applied;
   }
 
   // ---------- Opciones del editor ----------
 
   setTool(tool: ToolId): void {
+    if (CHARACTER_ONLY_TOOLS.includes(tool) && !this.characterProfile) return;
     this.cancelStroke();
     this.set({ tool, selection: tool === 'select' ? this.state.selection : null });
+  }
+
+  setSharedEdit(mode: SharedEditMode): void {
+    this.set({ sharedEdit: mode === 'global' ? 'global' : 'copy' });
+  }
+
+  /** Elige el patrón que colocará la herramienta «Colocar patrón» y la activa. */
+  setPatternBrush(glyph: Glyph | null): void {
+    if (glyph && glyph.length !== 8) return;
+    this.set({ patternBrush: glyph ? glyph.slice() : null });
+    if (glyph) this.setTool('pattern');
+  }
+
+  private get characterProfile(): CharacterProfile | undefined {
+    const profile = getProfile(this.state.project.profileId);
+    return profile?.kind === 'character' ? profile : undefined;
   }
 
   setFilled(filled: boolean): void {
@@ -507,9 +653,39 @@ export class EditorStore {
   // ---------- Dibujo con puntero ----------
 
   get live(): LiveBuffer | null {
-    return this.stroke
-      ? { pixels: this.stroke.surface.pixels, dirty: this.stroke.surface.dirty }
-      : null;
+    const s = this.stroke;
+    if (!s) return null;
+    if (s.display) return { pixels: s.display, dirty: fullRect(this.state.project) };
+    return { pixels: s.surface.pixels, dirty: s.surface.dirty };
+  }
+
+  /** ¿Hay un gesto en curso cuyo resultado no está permitido? */
+  get liveBlocked(): boolean {
+    return this.stroke?.blocked === true;
+  }
+
+  /**
+   * Resultado de una edición del fotograma actual: en LCD de caracteres con
+   * edición global, las demás apariciones de los patrones editados cambian igual.
+   */
+  private resolvePixels(base: Uint8Array, next: Uint8Array, tool: ToolId): Uint8Array {
+    const profile = this.characterProfile;
+    if (!profile || this.state.sharedEdit !== 'global' || !PATTERN_AWARE_TOOLS.includes(tool)) {
+      return next;
+    }
+    return propagateSharedEdits(base, next, profile, this.state.project.romCharset);
+  }
+
+  /** Recalcula la vista previa del gesto y avisa cuando deja de estar permitida. */
+  private updateGesturePreview(s: Stroke): void {
+    const profile = this.characterProfile;
+    if (!profile) return;
+    const result = this.resolvePixels(s.base, s.surface.pixels, s.tool);
+    s.display = result === s.surface.pixels ? undefined : result;
+    const rom = this.state.project.romCharset;
+    const ok = checkFramePatterns(result, s.base, profile, rom, rom, false).ok;
+    if (!ok && !s.blocked) this.emit({ type: 'limit', phase: 'active' });
+    s.blocked = !ok;
   }
 
   /** Empieza una operación en (x, y). `erase` = botón derecho. */
@@ -526,8 +702,16 @@ export class EditorStore {
       if (!inside) return;
       const pixels = base.slice();
       if (floodFill(pixels, project.width, project.height, point.x, point.y, value) > 0) {
-        this.commitPixels(pixels, 'history.fill');
+        this.commitPixels(this.resolvePixels(base, pixels, tool), 'history.fill');
       }
+      return;
+    }
+    if (tool === 'pattern') {
+      const profile = this.characterProfile;
+      const brush = this.state.patternBrush;
+      if (!inside || !profile || !brush) return;
+      const cell = { row: Math.floor(point.y / 8), col: Math.floor(point.x / 5) };
+      this.commitPixels(stampPattern(base, profile, cell, brush), 'history.pattern');
       return;
     }
     if (tool === 'text') {
@@ -563,9 +747,11 @@ export class EditorStore {
       }
       return;
     }
-    this.stroke = { tool, value, base, surface, start: clamped, last: clamped };
+    const stroke: Stroke = { tool, value, base, surface, start: clamped, last: clamped };
+    this.stroke = stroke;
     if (tool === 'pencil' || tool === 'eraser') {
       surface.plot(clamped.x, clamped.y, value);
+      this.updateGesturePreview(stroke);
       this.emitLive(this.live);
     }
   }
@@ -627,6 +813,7 @@ export class EditorStore {
         break;
     }
     s.last = p;
+    this.updateGesturePreview(s);
     this.emitLive(this.live);
   }
 
@@ -650,9 +837,12 @@ export class EditorStore {
         return;
       }
       if (s.moveRect && (s.last.x !== s.start.x || s.last.y !== s.start.y)) {
-        this.commitPixels(s.surface.pixels, s.copy ? 'history.copyMove' : 'history.move', {
-          selection: this.state.selection,
-        });
+        const moved = this.commitPixels(
+          s.surface.pixels,
+          s.copy ? 'history.copyMove' : 'history.move',
+          { selection: this.state.selection },
+        );
+        if (!moved) this.set({ selection: s.moveRect });
       } else if (s.moveRect) {
         this.set({ selection: s.moveRect });
       }
@@ -665,13 +855,23 @@ export class EditorStore {
       rect: 'history.rect',
       ellipse: 'history.ellipse',
     };
-    this.commitPixels(s.surface.pixels, label[s.tool] ?? 'history.draw');
+    if (s.blocked) {
+      // Resultado no permitido: se descarta entero y el lienzo vuelve al estado confirmado.
+      this.emit({ type: 'limit', phase: 'ended' });
+      return;
+    }
+    this.commitPixels(
+      s.display ?? this.resolvePixels(s.base, s.surface.pixels, s.tool),
+      label[s.tool] ?? 'history.draw',
+    );
   }
 
   cancelStroke(): void {
     if (this.stroke) {
+      const blocked = this.stroke.blocked;
       this.stroke = null;
       this.emitLive(null);
+      if (blocked) this.emit({ type: 'limit', phase: 'ended' });
     }
   }
 
@@ -683,15 +883,26 @@ export class EditorStore {
     };
   }
 
-  private commitPixels(pixels: Uint8Array, label: string, extra: Partial<EditorState> = {}): void {
+  /** Sustituye los píxeles del fotograma actual; `false` si se rechazó. */
+  private commitPixels(
+    pixels: Uint8Array,
+    label: string,
+    extra: Partial<EditorState> = {},
+  ): boolean {
     const frame = this.currentFrame;
     if (pixels.length === frame.pixels.length && pixels.every((v, i) => v === frame.pixels[i])) {
       if (extra.selection !== undefined) this.set({ selection: extra.selection });
-      return;
+      return true;
     }
-    this.attempt(() =>
-      this.commit(replaceFramePixels(this.state.project, this.state.current, pixels), label, extra),
-    );
+    let applied = false;
+    this.attempt(() => {
+      applied = this.commit(
+        replaceFramePixels(this.state.project, this.state.current, pixels),
+        label,
+        extra,
+      );
+    });
+    return applied;
   }
 
   private stampText(point: Point, value: 0 | 1): void {
@@ -714,7 +925,10 @@ export class EditorStore {
       symmetry,
     );
     drawText(surface, x, y, text.value, { scale: text.scale, advance: text.advance }, value);
-    this.commitPixels(surface.pixels, 'history.text');
+    this.commitPixels(
+      this.resolvePixels(this.currentFrame.pixels, surface.pixels, 'text'),
+      'history.text',
+    );
   }
 
   // ---------- Teclado sobre el lienzo ----------
@@ -744,7 +958,10 @@ export class EditorStore {
     const value: 0 | 1 = mode === 'off' ? 0 : current ? 0 : 1;
     const surface = new DrawSurface(width, height, pixels, this.state.symmetry);
     surface.plot(c.x, c.y, value);
-    this.commitPixels(surface.pixels, 'history.pixel');
+    this.commitPixels(
+      this.resolvePixels(this.currentFrame.pixels, surface.pixels, 'pencil'),
+      'history.pixel',
+    );
   }
 
   // ---------- Selección y portapapeles ----------
@@ -786,8 +1003,8 @@ export class EditorStore {
     const pixels = this.currentFrame.pixels.slice();
     stampClip(pixels, width, height, clip, x, y);
     const rect = { x, y, width: clip.width, height: clip.height };
+    if (!this.commitPixels(pixels, 'history.paste', { selection: rect })) return true;
     this.set({ tool: 'select' });
-    this.commitPixels(pixels, 'history.paste', { selection: rect });
     if (!this.state.selection) this.set({ selection: rect });
     return true;
   }
@@ -810,9 +1027,38 @@ export class EditorStore {
     const moved = moveRegion(this.currentFrame.pixels, width, height, sel, dx, dy, false);
     const next = { ...sel, x: sel.x + dx, y: sel.y + dy };
     if (!clipRect(next, width, height)) return false;
-    this.commitPixels(moved, 'history.move', { selection: next });
-    if (this.state.selection !== next) this.set({ selection: next });
+    const applied = this.commitPixels(moved, 'history.move', { selection: next });
+    if (applied && this.state.selection !== next) this.set({ selection: next });
     return true;
+  }
+
+  // ---------- Ajuste a 8 caracteres propios ----------
+
+  /** Ajusta los fotogramas que no caben en la CGRAM como una sola edición deshacible. */
+  fitCgram(scope: FitScope): boolean {
+    const { project, current } = this.state;
+    const fits = fitProjectToCgram(project, scope, current);
+    if (fits.length === 0) {
+      this.emit({ type: 'notice', kind: 'info', code: 'toast.cgramFitNothing' });
+      return false;
+    }
+    const changes = new Map(fits.map((f) => [f.frameIndex, f.pixels]));
+    let applied = false;
+    this.attempt(() => {
+      applied = this.commit(replaceManyPixels(project, changes), 'history.fitCgram');
+    });
+    if (applied) {
+      this.emit({
+        type: 'notice',
+        kind: 'success',
+        code: 'toast.cgramFitted',
+        params: {
+          frames: fits.length,
+          cells: fits.reduce((sum, f) => sum + f.changedCells.length, 0),
+        },
+      });
+    }
+    return applied;
   }
 
   // ---------- Transformaciones ----------
@@ -898,22 +1144,43 @@ export class EditorStore {
     );
   }
 
+  /**
+   * Añade al final los patrones de diagnóstico de la matriz de LEDs (una sola
+   * edición deshacible) y selecciona el primero.
+   */
+  appendDiagnostics(): boolean {
+    const { project } = this.state;
+    if (getProfile(project.profileId)?.kind !== 'led-matrix') return false;
+    let applied = false;
+    this.attempt(() => {
+      const frames = ledDiagnosticFrames().map((f) => createFrame(f.pixels, f.durationMs));
+      applied = this.commit(
+        insertFrames(project, project.frames.length, frames),
+        'history.diagnostics',
+        { current: project.frames.length },
+      );
+    });
+    return applied;
+  }
+
   /** Importa una secuencia completa (GIF) como fotogramas. */
   importSequence(
     frames: readonly { pixels: Uint8Array; durationMs: number }[],
     replace: boolean,
   ): boolean {
     const { project } = this.state;
-    return this.attempt(() => {
+    let applied = false;
+    this.attempt(() => {
       const created = frames.map((f) => createFrame(f.pixels, f.durationMs));
       const next = replace
         ? replaceAllFrames(project, created)
         : insertFrames(project, project.frames.length, created);
-      this.commit(next, 'history.sequence', {
+      applied = this.commit(next, 'history.sequence', {
         current: replace ? 0 : project.frames.length,
         preview: null,
       });
     });
+    return applied;
   }
 
   dispose(): void {
@@ -922,4 +1189,8 @@ export class EditorStore {
     this.liveListeners.clear();
     this.eventListeners.clear();
   }
+}
+
+function fullRect(project: Project): DirtyRect {
+  return { x0: 0, y0: 0, x1: project.width - 1, y1: project.height - 1 };
 }

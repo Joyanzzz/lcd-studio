@@ -10,6 +10,7 @@ export interface SerializedProject {
   readonly appearance: unknown;
   readonly loopMode: string;
   readonly romCharset: string;
+  readonly device: unknown;
   readonly frames: readonly { readonly durationMs: number; readonly pixels: Uint8Array }[];
 }
 

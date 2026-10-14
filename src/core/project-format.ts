@@ -1,7 +1,13 @@
 import { z } from 'zod';
-import { getProfile, profileCanvasSize } from '../device-profiles/index.ts';
+import {
+  getProfile,
+  MAX7219_BRIGHTNESS_MAX,
+  profileCanvasSize,
+  type MatrixWiringId,
+} from '../device-profiles/index.ts';
 import { CUSTOM_PALETTE_ID, PALETTES, type Appearance } from './appearance.ts';
 import { base64Length, decodeBase64, encodeBase64 } from './base64.ts';
+import { defaultDevice, type DeviceConfig } from './device.ts';
 import { packBits, packedLength, unpackBits } from './bitpack.ts';
 import { fail, isAppError, issue, ok, type Issue, type Result } from './errors.ts';
 import { LIMITS, projectMemoryBytes } from './limits.ts';
@@ -10,12 +16,20 @@ import { isValidProjectName } from './names.ts';
 import { createFrame, LOOP_MODES, projectInvariantErrors, type Project } from './project.ts';
 
 /**
- * Formato de proyecto `.lcdstudio.json`, versión de esquema 2.
+ * Formato de proyecto `.lcdstudio.json`, versión de esquema 3.
  * La especificación completa está en `docs/file-format.md`.
+ *
+ * Historial del esquema (cada versión anterior se migra al abrirla; nunca se
+ * pierde contenido):
+ * - v1: prototipo de un solo archivo (`migrate-v1.ts`).
+ * - v2: perfil, apariencia, ROM, reproducción y fotogramas.
+ * - v3: añade `device` (conexión, destino de código y, en matrices de LEDs,
+ *   orientación, cableado y brillo). Un v2 se abre con `device` sin
+ *   configurar («solo diseño»).
  */
 
 export const FORMAT_ID = 'lcd-studio-project';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const PIXEL_ENCODING = 'bitpack-lsb-rowmajor';
 export const PROJECT_EXTENSION = '.lcdstudio.json';
 
@@ -42,7 +56,7 @@ const frameSchema = z.strictObject({
 
 const v2Schema = z.strictObject({
   format: z.literal(FORMAT_ID),
-  schemaVersion: z.literal(SCHEMA_VERSION),
+  schemaVersion: z.literal(2),
   generator: z.strictObject({
     name: z.string().min(1).max(LIMITS.nameMaxLength),
     version: z.string().min(1).max(32),
@@ -60,6 +74,27 @@ const v2Schema = z.strictObject({
   pixelEncoding: z.literal(PIXEL_ENCODING),
   frames: z.array(frameSchema).min(1).max(LIMITS.maxFrames),
 });
+
+const id = z.string().min(1).max(64);
+const deviceSchema = z.strictObject({
+  connection: id.nullable(),
+  codeTarget: id.nullable(),
+  matrix: z
+    .strictObject({
+      rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+      wiring: id,
+      brightness: z.number().int().min(0).max(MAX7219_BRIGHTNESS_MAX),
+    })
+    .nullable(),
+});
+
+const v3Schema = v2Schema.extend({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  device: deviceSchema,
+});
+
+type DocV2 = z.infer<typeof v2Schema>;
+type DocV3 = z.infer<typeof v3Schema>;
 
 export interface Generator {
   readonly name: string;
@@ -92,6 +127,17 @@ export function serializeProject(project: Project, generator: Generator): Uint8A
     height: project.height,
     appearance,
     romCharset: project.romCharset,
+    device: {
+      connection: project.device.connection,
+      codeTarget: project.device.codeTarget,
+      matrix: project.device.matrix
+        ? {
+            rotation: project.device.matrix.rotation,
+            wiring: project.device.matrix.wiring,
+            brightness: project.device.matrix.brightness,
+          }
+        : null,
+    },
     playback: { loop: project.loopMode },
     pixelEncoding: PIXEL_ENCODING,
     frames: project.frames.map((f) => ({
@@ -148,8 +194,9 @@ export function parseProjectJson(json: unknown, options: ParseOptions = {}): Res
     if (typeof version === 'number' && Number.isInteger(version) && version > SCHEMA_VERSION) {
       return fail([issue('project.newerVersion', { version })]);
     }
+    if (version === 2) return parseDocument(record, 2);
     if (version !== SCHEMA_VERSION) return fail([issue('project.unknownVersion')]);
-    return parseV2(record);
+    return parseDocument(record, 3);
   }
   if (record['v'] === 1) return migrateV1(record, options.fileName, options.defaultName);
   return fail([issue('project.unknownFormat')]);
@@ -163,14 +210,14 @@ function zodIssues(error: z.ZodError): Issue[] {
     );
 }
 
-function parseV2(record: Record<string, unknown>): Result<Project> {
+function parseDocument(record: Record<string, unknown>, version: 2 | 3): Result<Project> {
   const rawFrames = record['frames'];
   if (Array.isArray(rawFrames) && rawFrames.length > LIMITS.maxFrames) {
     return fail([issue('project.tooManyFrames', { max: LIMITS.maxFrames }, 'frames')]);
   }
-  const parsed = v2Schema.safeParse(record);
+  const parsed = version === 2 ? v2Schema.safeParse(record) : v3Schema.safeParse(record);
   if (!parsed.success) return fail(zodIssues(parsed.error));
-  const doc = parsed.data;
+  const doc: DocV2 | DocV3 = parsed.data;
 
   const profile = getProfile(doc.profile);
   if (!profile) return fail([issue('project.unknownProfile', { profile: doc.profile }, 'profile')]);
@@ -179,7 +226,7 @@ function parseV2(record: Record<string, unknown>): Result<Project> {
     return fail([issue('project.sizeMismatch', { profile: profile.id }, 'width')]);
   }
   if (!isValidProjectName(doc.name)) return fail([issue('project.invalidName', {}, 'name')]);
-  if (profile.kind === 'graphic' && doc.romCharset !== 'none') {
+  if (profile.kind !== 'character' && doc.romCharset !== 'none') {
     return fail([issue('project.invalidRom', {}, 'romCharset')]);
   }
   // Memoria esperada antes de reservar nada.
@@ -213,6 +260,21 @@ function parseV2(record: Record<string, unknown>): Result<Project> {
     'colors' in doc.appearance
       ? { palette: CUSTOM_PALETTE_ID, colors: { ...doc.appearance.colors } }
       : { palette: doc.appearance.palette };
+  // v2 no guardaba la configuración del dispositivo: queda sin configurar.
+  const device: DeviceConfig =
+    'device' in doc
+      ? Object.freeze({
+          connection: doc.device.connection as DeviceConfig['connection'],
+          codeTarget: doc.device.codeTarget,
+          matrix: doc.device.matrix
+            ? Object.freeze({
+                rotation: doc.device.matrix.rotation,
+                wiring: doc.device.matrix.wiring as MatrixWiringId,
+                brightness: doc.device.matrix.brightness,
+              })
+            : null,
+        })
+      : defaultDevice(profile);
   const project: Project = Object.freeze({
     name: doc.name,
     profileId: profile.id,
@@ -221,9 +283,10 @@ function parseV2(record: Record<string, unknown>): Result<Project> {
     appearance,
     loopMode: doc.playback.loop as Project['loopMode'],
     romCharset: doc.romCharset,
+    device,
     frames: Object.freeze(frames),
   });
   const errors = projectInvariantErrors(project);
   if (errors.length > 0) return fail(errors.map((code) => issue(code)));
-  return ok(project);
+  return ok(project, version === 2 ? [issue('migration.fromV2')] : []);
 }

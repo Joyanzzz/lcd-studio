@@ -1,14 +1,16 @@
 import { writeFile } from 'node:fs/promises';
 import { serializeProject } from '../../src/core/project-format.ts';
+import { ledDiagnosticFrames } from '../../src/core/led-diagnostics.ts';
 import {
   createFrame,
   createProject,
   insertFrames,
   replaceFramePixels,
+  setDevice,
   setLoopMode,
   type Project,
 } from '../../src/core/project.ts';
-import { getProfile } from '../../src/device-profiles/index.ts';
+import { getProfile, targetsFor } from '../../src/device-profiles/index.ts';
 import { exportersFor, runExport } from '../../src/exporters/index.ts';
 import { createZip } from '../../src/core/zip.ts';
 import { downloadBytes, expect, test } from './fixtures.ts';
@@ -56,61 +58,113 @@ function oledProject(): Project {
   ]);
 }
 
+function ledProject(): Project {
+  let p = createProject({ name: 'Matriz', profileId: 'max7219-8x8' });
+  const frames = ledDiagnosticFrames();
+  p = replaceFramePixels(p, 0, frames[0]!.pixels);
+  p = insertFrames(p, 1, [createFrame(frames[1]!.pixels, 300)]);
+  return setDevice(p, {
+    connection: 'max7219-spi',
+    codeTarget: 'arduino-max7219',
+    matrix: { rotation: 90, wiring: 'cols-msb-top', brightness: 7 },
+  });
+}
+
 for (const [label, build] of [
   ['LCD de caracteres', charProject],
   ['OLED SSD1306', oledProject],
+  ['matriz de LEDs 8×8', ledProject],
 ] as const) {
   test(`exporta todos los formatos (${label}) con bytes idénticos al núcleo`, async ({
     page,
     app,
-    t,
   }, info) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     const project = build();
     const path = info.outputPath('project.lcdstudio.json');
     await writeFile(path, serializeProject(project, { name: 'LCD Studio', version: 'e2e' }));
     await app.open();
     // Activar funciones experimentales para incluir PIC XC8.
-    await page.getByRole('button', { name: t('toolbar.settings') }).click();
+    await app.menu('file', 'settings');
     await page.getByTestId('experimental').check();
-    await page
-      .getByTestId('settings-dialog')
-      .getByRole('button', { name: t('dialog.ok') })
-      .click();
+    await page.keyboard.press('Escape');
     await app.openProjectFile(path);
     await expect(page.locator('.titlebar h1')).toContainText(project.name);
-    await app.panel('export');
 
     const profile = getProfile(project.profileId)!;
-    const exporters = exportersFor(profile, true);
-    expect(exporters.length).toBeGreaterThanOrEqual(7);
+    const exporters = exportersFor(profile, true).filter(
+      (e) =>
+        e.category !== 'code' ||
+        targetsFor(profile, project.device.connection).some((x) => x.exporterId === e.id),
+    );
+    expect(exporters.length).toBeGreaterThanOrEqual(5);
     for (const exporter of exporters) {
-      await page.getByTestId('export-format').selectOption(exporter.id);
-      await page.getByTestId('export-generate').click();
+      const content = exporter.contents.includes('animation') ? 'animation' : 'frame';
+      await app.exportTo(exporter.id, content);
       const expected = runExport(
         exporter,
         { project, profile, currentFrame: 0, appVersion: '1.0.0' },
-        {},
+        { frames: content === 'animation' ? 'all' : 'current' },
       );
       expect(expected.files, exporter.id).toBeDefined();
       const files = expected.files!;
+      const save = page.getByTestId('export-save');
+      await expect(save, exporter.id).toBeEnabled({ timeout: 30_000 });
+      const download = page.waitForEvent('download');
+      await save.click();
+      const d = await download;
+      const bytes = await downloadBytes(d);
       if (files.length === 1) {
-        const download = page.waitForEvent('download');
-        await page.getByTestId('export-download').click();
-        const d = await download;
         expect(d.suggestedFilename(), exporter.id).toBe(files[0]!.name);
-        expect(await downloadBytes(d), exporter.id).toEqual(files[0]!.data);
+        expect(bytes, exporter.id).toEqual(files[0]!.data);
       } else {
-        const download = page.waitForEvent('download');
-        await page.getByTestId('export-zip').click();
-        const bytes = await downloadBytes(await download);
         expect(bytes, exporter.id).toEqual(
           createZip(files.map((f) => ({ name: f.name, data: f.data }))),
         );
       }
+      await expect(page.getByTestId('export-dialog')).toBeHidden();
     }
   });
 }
+
+test('el asistente solo ofrece formatos compatibles con el contenido y explica por qué', async ({
+  page,
+  app,
+}) => {
+  await app.open();
+  await app.menu('export', 'export');
+  // Un solo fotograma: no hay animación ni selección.
+  await expect(page.getByTestId('export-content-animation')).toBeDisabled();
+  await expect(page.getByTestId('export-content-selection')).toBeDisabled();
+  await page.getByTestId('export-next').click();
+  await expect(page.getByTestId('export-format-gif')).toBeDisabled();
+  await expect(page.getByTestId('export-format-png')).toBeEnabled();
+  await app.closeDialog();
+  // Selección: solo imagen y datos, no código.
+  await app.tool('select');
+  await app.dragPixels([0, 0], [9, 7]);
+  await app.menu('export', 'export');
+  await page.getByTestId('export-content-selection').check();
+  await page.getByTestId('export-next').click();
+  await expect(page.getByTestId('export-format-arduino-liquidcrystal')).toBeDisabled();
+  await page.getByTestId('export-format-binary').check();
+  await page.getByTestId('export-next').click();
+  await page.getByTestId('export-next').click();
+  await expect(page.getByTestId('export-diagnostics')).toContainText('16');
+});
+
+test('cancelar el asistente no guarda archivos ni cambia el proyecto', async ({ page, app }) => {
+  await app.open();
+  await app.clickPixel(2, 2);
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await app.exportTo('png', 'frame');
+  await page.getByTestId('export-dialog').getByRole('button').last().click();
+  await expect(page.getByTestId('export-dialog')).toBeHidden();
+  expect(downloads).toBe(0);
+  const rows = await app.asciiRows();
+  expect(rows[2]!.slice(0, 3)).toBe('..#');
+});
 
 test('advierte y bloquea antes de una exportación incompatible', async ({ page, app }, info) => {
   let p = createProject({ name: 'Grande', profileId: 'ssd1306-128x64' });
@@ -123,10 +177,9 @@ test('advierte y bloquea antes de una exportación incompatible', async ({ page,
   await writeFile(path, serializeProject(p, { name: 'LCD Studio', version: 'e2e' }));
   await app.open();
   await app.openProjectFile(path);
-  await app.panel('export');
-  await page.getByTestId('export-format').selectOption('adafruit-gfx');
+  await app.exportTo('adafruit-gfx', 'animation');
   await expect(
     page.getByTestId('export-diagnostics').locator('[data-severity="error"]').first(),
   ).toBeVisible();
-  await expect(page.getByTestId('export-generate')).toBeDisabled();
+  await expect(page.getByTestId('export-save')).toBeDisabled();
 });

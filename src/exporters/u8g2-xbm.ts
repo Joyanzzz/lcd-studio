@@ -1,7 +1,7 @@
 import { LIMITS } from '../core/limits.ts';
 import { sanitizeFileBaseName } from '../core/names.ts';
 import type { GraphicProfile } from '../device-profiles/index.ts';
-import { canSketchSsd1306, i2cAddressField } from './adafruit-gfx.ts';
+import { canSketch, i2cAddressField } from './adafruit-gfx.ts';
 import { playbackParts } from './shared/arduino-playback.ts';
 import {
   AVR_GUARD,
@@ -17,7 +17,6 @@ import {
   asRecord,
   defaultIdentifier,
   FRAME_SCOPES,
-  frameScopeField,
   identifierField,
   pickBool,
   pickEnum,
@@ -79,6 +78,7 @@ export const u8g2XbmExporter: Exporter<U8g2Options> = {
   labelKey: 'exporter.u8g2-xbm',
   descriptionKey: 'exporter.u8g2-xbm.description',
   category: 'code',
+  contents: ['frame', 'animation'],
   stability: 'stable',
   extension: '.h',
   orientation: 'rows',
@@ -93,7 +93,7 @@ export const u8g2XbmExporter: Exporter<U8g2Options> = {
       board: 'arduino-uno',
       identifier: defaultIdentifier(ctx),
       progmem: true,
-      sketch: canSketchSsd1306(profile) && U8G2_CONSTRUCTORS[profile.id] !== undefined,
+      sketch: canSketch(ctx) && U8G2_CONSTRUCTORS[profile.id] !== undefined,
       i2cAddress: profile.i2cAddresses[0] ?? 0x3c,
     };
   },
@@ -108,7 +108,10 @@ export const u8g2XbmExporter: Exporter<U8g2Options> = {
       board: resolveBoard(r['board']).id,
       identifier: pickString(r['identifier'], LIMITS.nameMaxLength * 2, d.identifier),
       progmem: pickBool(r['progmem'], d.progmem),
-      sketch: U8G2_CONSTRUCTORS[profile.id] !== undefined && pickBool(r['sketch'], d.sketch),
+      sketch:
+        canSketch(ctx) &&
+        U8G2_CONSTRUCTORS[profile.id] !== undefined &&
+        pickBool(r['sketch'], d.sketch),
       i2cAddress: profile.i2cAddresses.includes(address) ? address : d.i2cAddress,
     };
   },
@@ -116,7 +119,6 @@ export const u8g2XbmExporter: Exporter<U8g2Options> = {
   fields(ctx, options) {
     const profile = graphic(ctx);
     const fields: OptionField[] = [
-      frameScopeField(),
       boardField(),
       identifierField(),
       {
@@ -126,7 +128,7 @@ export const u8g2XbmExporter: Exporter<U8g2Options> = {
         hintKey: 'export.hint.progmemU8g2',
       },
     ];
-    if (U8G2_CONSTRUCTORS[profile.id]) {
+    if (canSketch(ctx) && U8G2_CONSTRUCTORS[profile.id]) {
       fields.push({ kind: 'boolean', key: 'sketch', labelKey: 'export.option.sketchU8g2' });
       if (options.sketch) fields.push(i2cAddressField(profile));
     }

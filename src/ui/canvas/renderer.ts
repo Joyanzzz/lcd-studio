@@ -8,7 +8,7 @@ import { pixelLeft, pixelTop, type CanvasLayout } from './layout.ts';
 /**
  * Renderizador del lienzo por capas:
  *   marco → cristal → píxeles apagados → papel cebolla → píxeles encendidos →
- *   celdas incompatibles → selección → cursor.
+ *   celdas no disponibles o fuera del límite → selección → cursor.
  *
  * Los píxeles encendidos se guardan en un lienzo auxiliar 1:1 que solo se
  * actualiza en la región modificada; la composición final usa `drawImage`
@@ -29,7 +29,10 @@ export interface RenderInput {
   readonly grid: boolean;
   readonly onion: readonly OnionLayer[];
   readonly selection: Rect | null;
-  readonly overflow: readonly CellRef[];
+  /** Por celda (LCD de caracteres): 1 si dibujar en ella crearía un patrón sin ranura. */
+  readonly unavailable: Uint8Array | null;
+  /** Celdas que exceden el límite (proyecto en reparación). */
+  readonly overLimit: readonly CellRef[];
   readonly cursor: Point | null;
   readonly devicePixelRatio: number;
 }
@@ -107,8 +110,26 @@ export class LcdRenderer {
     // Píxeles encendidos.
     this.drawLayer(ctx, layout, this.onLayer);
 
+    // Matriz de LEDs: una máscara del color del cristal deja cada píxel como
+    // un LED redondo (encendido, apagado o papel cebolla).
+    if (layout.ledMode) {
+      const mask = new Path2D();
+      mask.rect(layout.pad, layout.pad, w * z, h * z);
+      const radius = z * 0.42;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const cx = layout.pad + x * z + z / 2;
+          const cy = layout.pad + y * z + z / 2;
+          mask.moveTo(cx + radius, cy);
+          mask.arc(cx, cy, radius, 0, Math.PI * 2);
+        }
+      }
+      ctx.fillStyle = colors.screen;
+      ctx.fill(mask, 'evenodd');
+    }
+
     // Rejilla: líneas del color del cristal entre píxeles.
-    if (input.grid && z >= 4) {
+    if (input.grid && z >= 4 && !layout.ledMode) {
       ctx.fillStyle = colors.screen;
       ctx.globalAlpha = 0.55;
       for (let x = 1; x < w; x++) {
@@ -144,23 +165,39 @@ export class LcdRenderer {
       }
     }
 
-    // Celdas incompatibles: contorno y aspa (no solo color).
-    if (input.overflow.length > 0) {
+    // LCD de caracteres: celdas donde dibujar necesitaría un patrón propio nuevo
+    // (sin ranura libre) se atenúan y llevan un borde discontinuo fino; las que
+    // exceden el límite en un proyecto en reparación llevan un borde discontinuo
+    // grueso. No depende solo del color.
+    if (layout.charMode && input.unavailable) {
+      const cols = w / 5;
+      ctx.save();
+      input.unavailable.forEach((flag, cell) => {
+        if (!flag) return;
+        const x = pixelLeft(layout, (cell % cols) * 5);
+        const y = pixelTop(layout, Math.floor(cell / cols) * 8);
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = colors.frame;
+        ctx.fillRect(x, y, 5 * z, 8 * z);
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = colors.screen;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(x + 0.5, y + 0.5, 5 * z - 1, 8 * z - 1);
+      });
+      ctx.restore();
+    }
+    if (input.overLimit.length > 0) {
+      ctx.save();
       ctx.lineWidth = 2;
-      ctx.strokeStyle = '#e02020';
-      for (const cell of input.overflow) {
+      ctx.setLineDash([Math.max(3, z), Math.max(2, z / 2)]);
+      ctx.strokeStyle = '#f0a020';
+      for (const cell of input.overLimit) {
         const x = pixelLeft(layout, cell.col * 5) - 1;
         const y = pixelTop(layout, cell.row * 8) - 1;
-        const cw = 5 * z + 2;
-        const ch = 8 * z + 2;
-        ctx.strokeRect(x, y, cw, ch);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + cw, y + ch);
-        ctx.moveTo(x + cw, y);
-        ctx.lineTo(x, y + ch);
-        ctx.stroke();
+        ctx.strokeRect(x, y, 5 * z + 2, 8 * z + 2);
       }
+      ctx.restore();
     }
 
     // Selección: doble trazo discontinuo blanco y negro.

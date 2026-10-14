@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { convertProject } from '../../../src/core/convert.ts';
 import { AppError } from '../../../src/core/errors.ts';
 import {
   blankFrame,
-  changeProfile,
   createFrame,
   createProject,
   deleteFrame,
@@ -160,20 +160,28 @@ describe('proyecto', () => {
     px[79] = 1;
     p = replaceFramePixels(p, 0, px);
     p = setRomCharset(p, 'hd44780-a00');
-    const q = changeProfile(p, 'hd44780-20x4');
+    const q = convertProject(p, 'hd44780-20x4', undefined, 'crop-top-left').project;
     expect([q.width, q.height]).toEqual([100, 32]);
     expect(q.frames[0]!.pixels[0]).toBe(1);
     expect(q.frames[0]!.pixels[79]).toBe(1);
     expect(q.romCharset).toBe('hd44780-a00');
-    const g = changeProfile(q, 'graphic-custom', { width: 10, height: 10 });
+    const g = convertProject(
+      q,
+      'graphic-custom',
+      { width: 10, height: 10 },
+      'crop-top-left',
+    ).project;
     expect(g.romCharset).toBe('none');
     expect(g.frames[0]!.pixels[0]).toBe(1);
     expect(projectInvariantErrors(g)).toEqual([]);
-    expect(changeProfile(g, 'graphic-custom', { width: 10, height: 10 }).frames[0]!.pixels).toBe(
-      g.frames[0]!.pixels,
-    );
-    expect(() => changeProfile(g, 'graphic-custom')).toThrow(/sizeRequired/);
-    expect(() => changeProfile(g, 'graphic-custom', { width: 0, height: 4 })).toThrow();
+    expect(
+      convertProject(g, 'graphic-custom', { width: 10, height: 10 }, 'scale').project.frames[0]!
+        .pixels,
+    ).toBe(g.frames[0]!.pixels);
+    expect(() => convertProject(g, 'graphic-custom', undefined, 'scale')).toThrow(/sizeRequired/);
+    expect(() =>
+      convertProject(g, 'graphic-custom', { width: 0, height: 4 }, 'crop-top-left'),
+    ).toThrow();
     expect(g.frames[0]!.pixels.length).toBe(100);
   });
 

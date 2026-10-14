@@ -34,6 +34,16 @@ Leyenda: ✅ hecho y correcto · ❌ hecho con fallos · — no realizado.
 | PCD8544 84×48 | — | — | — | — (solo datos; sin boceto) | — | — |
 | KS0108 128×64 | — | — | — | — (solo datos; sin boceto) | — | — |
 | HD44780 (cualquier tamaño) | PIC16F877A / PIC18F4550 | XC8 (experimental) | — | — (XC8 no está instalado en CI) | — | — |
+| MAX7219 8×8 (giro 0°, `rows-msb-left`) | Arduino Uno | — (`shiftOut`, sin bibliotecas) | — | ✅ (loop, 20 fotogramas de diagnóstico) | Lógica de registros simulada en pruebas unitarias ¹ | — |
+| MAX7219 8×8 (giro 90°, `cols-msb-top`, pines 2/3/4) | Arduino Nano | — | — | ✅ (once) | ¹ | — |
+| MAX7219 8×8 (giro 270°, `rows-lsb-left`) | Arduino Mega 2560 | — | — | ✅ (pingpong) | ¹ | — |
+| MAX7219 8×8 (giro 180°, `cols-lsb-top`) | Arduino Uno | — | — | ✅ (1 fotograma) | ¹ | — |
+| MAX7219 registros (`.h`) | Arduino Uno | — | — | ✅ | ¹ | — |
+
+¹ «Simulación» aquí es solo de los datos: `tests/unit/exporters/max7219.test.ts`
+decodifica los 8 registros de cada patrón de diagnóstico con cada cableado,
+gira la imagen como el módulo montado y comprueba que coincide con el dibujo,
+para los 4 giros × 4 cableados. No simula el chip ni el bus serie.
 
 ## Memoria estimada frente a la real
 
@@ -56,11 +66,50 @@ Resultados del 2026-10-13 (bytes, real / estimado):
 | Adafruit SSD1306 128×32 once | Mega 2560 | 29 628 / 30 376 | 350 / 928 ¹ |
 | U8g2 128×64 pingpong | Uno | 12 836 / 13 460 | 666 / 724 |
 | U8g2 128×32 loop RAM | Uno | 8 892 / 9 864 | 1 172 / 1 240 |
+| MAX7219 20 fotogramas loop (2026-10-14) | Uno | 1 500 / 1 814 | 15 / 73 |
+| MAX7219 20 fotogramas once | Nano | 1 518 / 1 814 | 15 / 73 |
+| MAX7219 20 fotogramas pingpong | Mega 2560 | 2 178 / 2 364 | 17 / 73 |
+| MAX7219 1 fotograma | Uno | 948 / 1 634 | 9 / 73 |
 
 ¹ Adafruit SSD1306 reserva el búfer de pantalla con `malloc` al arrancar; el
 compilador no lo cuenta, la estimación sí.
 
-La tabla completa (31 casos) se genera en `build/arduino-report.json`.
+La tabla completa (36 casos, 0 fallos el 2026-10-14) se genera en
+`build/arduino-report.json`.
+
+## Matriz de LEDs MAX7219: procedimiento de prueba física
+
+Material: Arduino Uno o Nano (5 V), módulo de matriz 8×8 con MAX7219 (por
+ejemplo, con LED 1088AS), cables. Conexión del boceto por omisión: VCC → 5 V,
+GND → GND, DIN → 11, CS (LOAD) → 10, CLK → 13 (se pueden cambiar en la
+exportación).
+
+1. Crea un proyecto «Matriz de LEDs (MAX7219)» con la conexión serie, el
+   destino «Arduino · MAX7219» y, para empezar, giro 0° y cableado
+   `rows-msb-left`.
+2. Proyecto → Patrones de diagnóstico → Añadir (19 fotogramas). Exporta la
+   animación completa con «Arduino · matriz MAX7219» y carga el `.ino`.
+3. **Orientación** (2 s): debe verse una flecha hacia arriba y un LED solo en
+   la esquina superior izquierda (mirando el módulo como vas a montarlo).
+   - Si la flecha apunta a otro lado: ajusta el giro (90°, 180° o 270°).
+   - Si la flecha apunta bien pero el LED suelto está a la derecha, o la
+     imagen está traspuesta: cambia el cableado y repite.
+4. **Esquinas** (2 s): 1 LED arriba a la izquierda, 2 arriba a la derecha,
+   3 abajo a la derecha y 4 abajo a la izquierda.
+5. **Filas**: se enciende cada fila de arriba abajo, una a una (0,4 s cada
+   una). **Columnas**: cada columna de izquierda a derecha.
+6. **Todo encendido** (2 s): los 64 LEDs con el mismo brillo. Cambia el
+   brillo (0–15) en Proyecto → Configuración, exporta de nuevo y comprueba
+   que la intensidad cambia y que en 0 no se apaga del todo (1/32 de ciclo).
+7. **Animación**: dibuja una animación propia con duraciones distintas (por
+   ejemplo 100 ms y 1 000 ms) y comprueba con un cronómetro que el cambio de
+   imagen respeta las duraciones y el modo de reproducción (bucle, ida y
+   vuelta, una vez). El refresco de los LEDs lo hace el MAX7219: no debe
+   verse parpadeo con ninguna duración.
+
+Anota en el registro el módulo (marca, LED), el giro y el cableado que
+funcionaron. El giro y el cableado solo cambian los datos exportados: el
+dibujo del proyecto no se modifica.
 
 ## Afirmaciones que requieren verificación física
 
@@ -83,6 +132,10 @@ la hoja de datos y en la compilación:
 7. La tabla ROM A00 (experimental) coincide con el chip real; los
    controladores con ROM A02 u otras variantes muestran otros glifos.
 8. El código PIC XC8 compila y funciona (experimental: no se ha compilado).
+9. MAX7219: que algún perfil de cableado (`rows-msb-left`, `rows-lsb-left`,
+   `cols-msb-top`, `cols-lsb-top`) corresponde a cada módulo concreto, que
+   el giro configurado se ve como en el editor, que el brillo 0–15 cambia la
+   intensidad y que la escritura con `shiftOut()` funciona con cables largos.
 
 ## Cómo registrar una prueba física
 

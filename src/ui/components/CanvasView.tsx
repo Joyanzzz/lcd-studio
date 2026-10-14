@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { resolveColors } from '../../core/appearance.ts';
+import { unavailableCells } from '../../core/constraints.ts';
 import type { DirtyRect } from '../../engine/draw.ts';
 import { useEditor, usePreferences, useServices } from '../app-context.tsx';
 import { computeLayout, screenToPixel } from '../canvas/layout.ts';
@@ -68,9 +69,18 @@ export function CanvasView({ zoom }: { zoom: number }) {
     return layers;
   }, [onion, playing, project.frames, current]);
 
-  const overflow = useMemo(
-    () => (prefs.markCells && analysis && !preview ? analysis.overflow : []),
-    [prefs.markCells, analysis, preview],
+  const sharedEdit = useEditor((s) => s.sharedEdit);
+  // Celdas no disponibles (8 patrones en uso) y celdas fuera del límite (reparación).
+  const unavailable = useMemo(
+    () =>
+      prefs.markCells && analysis && !preview && !playing
+        ? unavailableCells(analysis, sharedEdit)
+        : null,
+    [prefs.markCells, analysis, preview, playing, sharedEdit],
+  );
+  const overLimit = useMemo(
+    () => (analysis && !preview && !playing ? analysis.overflow : []),
+    [analysis, preview, playing],
   );
 
   useEffect(() => {
@@ -97,7 +107,8 @@ export function CanvasView({ zoom }: { zoom: number }) {
           grid: prefs.grid,
           onion: onionLayers,
           selection,
-          overflow,
+          unavailable,
+          overLimit,
           cursor,
           devicePixelRatio: window.devicePixelRatio || 1,
         },
@@ -136,7 +147,8 @@ export function CanvasView({ zoom }: { zoom: number }) {
     prefs.grid,
     onionLayers,
     selection,
-    overflow,
+    unavailable,
+    overLimit,
     cursor,
     frame,
     preview,

@@ -41,7 +41,7 @@ test.describe('aplicación', () => {
   }) => {
     await app.open();
     await expect(page.locator('html')).toHaveAttribute('lang', locale!.slice(0, 2));
-    await expect(page.getByRole('button', { name: t('toolbar.open'), exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: t('menu.file'), exact: true })).toBeVisible();
     const other = locale!.startsWith('en') ? 'es' : 'en';
     await page.locator('#language-select').selectOption(other);
     await expect(page.locator('html')).toHaveAttribute('lang', other);
@@ -80,10 +80,16 @@ test.describe('aplicación', () => {
     });
   }
 
-  test('la ayuda se abre y cierra con teclado y devuelve el foco', async ({ page, app, t }) => {
+  test('menús con teclado: la ayuda se abre y Escape devuelve el foco al menú', async ({
+    page,
+    app,
+    t,
+  }) => {
     await app.open();
-    const help = page.getByRole('button', { name: t('toolbar.help') });
+    const help = page.getByTestId('menu-help');
     await help.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('menu-help-list')).toBeVisible();
     await page.keyboard.press('Enter');
     const dialog = page.getByTestId('help-dialog');
     await expect(dialog).toBeVisible();
@@ -91,5 +97,13 @@ test.describe('aplicación', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(help).toBeFocused();
+    // Flechas entre menús y Escape para cerrar sin activar nada.
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByTestId('menu-export')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByTestId('menu-export-list')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('menu-export-list')).toBeHidden();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
   });
 });

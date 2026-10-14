@@ -5,14 +5,9 @@ import {
   type RomCharsetId,
 } from '../device-profiles/index.ts';
 import { defaultAppearanceFor, isValidAppearance, type Appearance } from './appearance.ts';
+import { defaultDevice, deviceErrors, type DeviceConfig } from './device.ts';
 import { AppError } from './errors.ts';
-import {
-  assertCanvasSize,
-  isIntInRange,
-  isValidDuration,
-  LIMITS,
-  projectMemoryBytes,
-} from './limits.ts';
+import { assertCanvasSize, isIntInRange, isValidDuration, LIMITS } from './limits.ts';
 import { isValidProjectName, sanitizeProjectName } from './names.ts';
 
 export type LoopMode = 'loop' | 'pingpong' | 'once';
@@ -42,6 +37,8 @@ export interface Project {
   readonly appearance: Appearance;
   readonly loopMode: LoopMode;
   readonly romCharset: RomCharsetId;
+  /** Conexión, destino de código y (matrices LED) orientación física. */
+  readonly device: DeviceConfig;
   readonly frames: readonly Frame[];
 }
 
@@ -85,6 +82,8 @@ export interface NewProjectOptions {
   /** Solo para perfiles sin tamaño fijo. */
   readonly width?: number;
   readonly height?: number;
+  /** Configuración del asistente; si falta, «solo diseño». */
+  readonly device?: DeviceConfig;
 }
 
 export function createProject(options: NewProjectOptions): Project {
@@ -96,6 +95,8 @@ export function createProject(options: NewProjectOptions): Project {
   const size = profileCanvasSize(profile, custom);
   if (!size) throw new AppError('project.sizeRequired');
   assertCanvasSize(size.width, size.height);
+  const device = options.device ?? defaultDevice(profile);
+  if (deviceErrors(profile, device).length > 0) throw new AppError('device.invalid');
   return freezeProject({
     name: sanitizeProjectName(options.name),
     profileId: profile.id,
@@ -104,6 +105,7 @@ export function createProject(options: NewProjectOptions): Project {
     appearance: defaultAppearanceFor(profile.kind),
     loopMode: 'loop',
     romCharset: 'none',
+    device: Object.freeze({ ...device }),
     frames: [blankFrame(size.width, size.height)],
   });
 }
@@ -141,6 +143,8 @@ export function projectInvariantErrors(project: Project): string[] {
   } else if (project.romCharset !== 'none') {
     errors.push('project.invalidRom');
   }
+  if (!project.device) errors.push('device.invalid');
+  else errors.push(...deviceErrors(profile, project.device));
   if (!isIntInRange(project.frames.length, 1, LIMITS.maxFrames)) {
     errors.push('project.invalidFrameCount');
   }
@@ -296,6 +300,12 @@ export function renameProject(project: Project, name: string): Project {
   return freezeProject({ ...project, name: clean });
 }
 
+export function setDevice(project: Project, device: DeviceConfig): Project {
+  const profile = requireProfile(project.profileId);
+  if (deviceErrors(profile, device).length > 0) throw new AppError('device.invalid');
+  return freezeProject({ ...project, device: Object.freeze({ ...device }) });
+}
+
 export function setRomCharset(project: Project, romCharset: RomCharsetId): Project {
   const profile = requireProfile(project.profileId);
   if (profile.kind !== 'character' || !profile.romCharsets.includes(romCharset)) {
@@ -320,42 +330,4 @@ export function resizePixels(
     out.set(pixels.subarray(y * width, y * width + w), y * newWidth);
   }
   return out;
-}
-
-/**
- * Cambia el perfil de pantalla. Los fotogramas se recortan o amplían desde la
- * esquina superior izquierda. Se calcula la memoria antes de reservarla.
- */
-export function changeProfile(
-  project: Project,
-  profileId: string,
-  customSize?: { width: number; height: number },
-): Project {
-  const profile = requireProfile(profileId);
-  const size = profileCanvasSize(profile, customSize);
-  if (!size) throw new AppError('project.sizeRequired');
-  assertCanvasSize(size.width, size.height);
-  projectMemoryBytes(size.width, size.height, project.frames.length);
-  const sameSize = size.width === project.width && size.height === project.height;
-  const frames = sameSize
-    ? project.frames
-    : project.frames.map((f) =>
-        Object.freeze({
-          id: f.id,
-          durationMs: f.durationMs,
-          pixels: resizePixels(f.pixels, project.width, project.height, size.width, size.height),
-        }),
-      );
-  const romCharset =
-    profile.kind === 'character' && profile.romCharsets.includes(project.romCharset)
-      ? project.romCharset
-      : 'none';
-  return freezeProject({
-    ...project,
-    profileId: profile.id,
-    width: size.width,
-    height: size.height,
-    romCharset,
-    frames,
-  });
 }

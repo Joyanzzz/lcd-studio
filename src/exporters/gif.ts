@@ -33,6 +33,7 @@ export const gifExporter: Exporter<GifOptions> = {
   labelKey: 'exporter.gif',
   descriptionKey: 'exporter.gif.description',
   category: 'image',
+  contents: ['animation'],
   stability: 'stable',
   extension: '.gif',
   orientation: 'image',

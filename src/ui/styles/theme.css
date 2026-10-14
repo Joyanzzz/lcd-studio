@@ -130,3 +130,21 @@
 .px-L {
   fill: var(--px-L);
 }
+
+/* Capa de contorno de los iconos: solo visible en el tema oscuro. */
+.px-edge {
+  fill: transparent;
+}
+
+/*
+ * Tema oscuro: los iconos de herramientas y acciones se reducen a su
+ * contorno en blanco (estilo Paint, sin rellenos que pierden contraste sobre
+ * fondo oscuro). Los iconos de estado (error, aviso, información, correcto)
+ * conservan su color.
+ */
+:root[data-theme='dark'] .px-icon:not(.px-status) path:not(.px-edge) {
+  fill: transparent;
+}
+:root[data-theme='dark'] .px-icon:not(.px-status) .px-edge {
+  fill: #ffffff;
+}

@@ -60,37 +60,68 @@ export class AppPage {
     await this.page.mouse.up();
   }
 
-  /** Abre una pestaña del panel lateral (en móvil, primero la sección de paneles). */
-  async panel(id: 'draw' | 'image' | 'export' | 'project'): Promise<void> {
-    const nav = this.page.getByRole('navigation', { name: this.t('mobile.nav') });
-    if (await nav.isVisible())
-      await nav.getByRole('button', { name: this.t('mobile.panels') }).click();
+  /** Abre un menú de la barra superior y activa una opción. */
+  async menu(menuId: string, itemId: string): Promise<void> {
+    await this.page.getByTestId(`menu-${menuId}`).click();
+    await this.page.getByTestId(`menuitem-${itemId}`).click();
+  }
+
+  /** Abre una pestaña del panel lateral (lo despliega si está retraído). */
+  async panel(id: 'draw' | 'image'): Promise<void> {
+    const side = this.page.getByTestId('side-panel');
+    if ((await side.getAttribute('data-open')) !== 'true') {
+      await this.page.getByTestId('side-toggle').click();
+    }
     await this.page.getByTestId(`tab-${id}`).click();
   }
 
-  async showTimeline(): Promise<void> {
-    const nav = this.page.getByRole('navigation', { name: this.t('mobile.nav') });
-    if (await nav.isVisible())
-      await nav.getByRole('button', { name: this.t('mobile.timeline') }).click();
+  /** Retrae el panel lateral si está desplegado (en móvil tapa el lienzo). */
+  async closePanel(): Promise<void> {
+    const side = this.page.getByTestId('side-panel');
+    if ((await side.getAttribute('data-open')) === 'true') {
+      await this.page.getByTestId('side-close').click();
+    }
   }
 
-  async showTools(): Promise<void> {
-    const nav = this.page.getByRole('navigation', { name: this.t('mobile.nav') });
-    if (await nav.isVisible())
-      await nav.getByRole('button', { name: this.t('mobile.tools') }).click();
+  /** Despliega la línea de tiempo si está plegada. */
+  async showTimeline(): Promise<void> {
+    const toggle = this.page.getByTestId('timeline-collapse');
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   }
 
   async tool(id: string): Promise<void> {
-    await this.showTools();
     await this.page.getByTestId(`tool-${id}`).click();
+  }
+
+  /**
+   * Recorre el asistente de exportación hasta el resultado (no guarda nada).
+   * `content`: fotograma actual, selección o animación completa.
+   */
+  async exportTo(
+    exporterId: string,
+    content: 'frame' | 'selection' | 'animation' = 'frame',
+  ): Promise<void> {
+    await this.menu('export', 'export');
+    const dialog = this.page.getByTestId('export-dialog');
+    await expect(dialog).toBeVisible();
+    await this.page.getByTestId(`export-content-${content}`).check();
+    await this.page.getByTestId('export-next').click();
+    await this.page.getByTestId(`export-format-${exporterId}`).check();
+    await this.page.getByTestId('export-next').click();
+    await this.page.getByTestId('export-next').click();
+    await expect(this.page.getByTestId('export-step-result')).toBeVisible();
+  }
+
+  async closeDialog(): Promise<void> {
+    await this.page.keyboard.press('Escape');
+    await expect(this.page.locator('dialog[open]')).toHaveCount(0);
   }
 
   /** Exporta el fotograma actual como ASCII y devuelve sus filas. */
   async asciiRows(): Promise<string[]> {
-    await this.panel('export');
-    await this.page.getByTestId('export-format').selectOption('ascii');
-    await this.page.getByTestId('export-generate').click();
+    await this.exportTo('ascii', 'frame');
     const text = await this.page.getByTestId('export-preview').inputValue();
+    await this.closeDialog();
     return text.trimEnd().split('\n');
   }
 
@@ -100,7 +131,7 @@ export class AppPage {
    */
   async openProjectFile(path: string): Promise<void> {
     const chooser = this.page.waitForEvent('filechooser');
-    await this.page.getByRole('button', { name: this.t('toolbar.open'), exact: true }).click();
+    await this.menu('file', 'open');
     const unsaved = this.page.getByTestId('unsaved-dialog');
     const first = await Promise.race([
       chooser.then(() => 'chooser' as const),
@@ -110,6 +141,13 @@ export class AppPage {
       await unsaved.getByRole('button', { name: this.t('dialog.unsaved.discard') }).click();
     }
     await (await chooser).setFiles(path);
+  }
+
+  /** Guarda (descarga) el proyecto con Archivo → Guardar. */
+  async saveDownload(): Promise<Download> {
+    const download = this.page.waitForEvent('download');
+    await this.menu('file', 'save');
+    return download;
   }
 
   async waitSaved(): Promise<void> {

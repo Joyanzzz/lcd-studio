@@ -1,19 +1,39 @@
 import { CHARACTER_PROFILES } from './character.ts';
 import { GRAPHIC_PROFILES } from './graphic.ts';
+import { LED_MATRIX_PROFILES } from './led-matrix.ts';
 import type { DisplayProfile, RomCharset, RomCharsetId } from './types.ts';
 
 export type {
   CharacterProfile,
+  ContentModel,
+  DisplayFamily,
   DisplayProfile,
   GraphicProfile,
+  LedMatrixProfile,
   RomCharset,
   RomCharsetId,
 } from './types.ts';
 export { HD44780_DDRAM_LINES } from './character.ts';
+export {
+  MATRIX_ROTATIONS,
+  MATRIX_WIRINGS,
+  MAX7219_BRIGHTNESS_MAX,
+  type MatrixRotation,
+  type MatrixWiringId,
+} from './led-matrix.ts';
+export {
+  connectionsFor,
+  isConnectionFor,
+  targetsFor,
+  type CodeTarget,
+  type ConnectionId,
+  type ConnectionOption,
+} from './capabilities.ts';
 
 export const DISPLAY_PROFILES: readonly DisplayProfile[] = Object.freeze([
   ...CHARACTER_PROFILES,
   ...GRAPHIC_PROFILES,
+  ...LED_MATRIX_PROFILES,
 ]);
 
 const BY_ID = new Map<string, DisplayProfile>(DISPLAY_PROFILES.map((p) => [p.id, p]));
@@ -29,7 +49,8 @@ export function profileCanvasSize(
   profile: DisplayProfile,
   custom?: { width: number; height: number },
 ): { width: number; height: number } | undefined {
-  if (profile.kind === 'character') return { width: profile.width, height: profile.height };
+  if (profile.kind === 'character' || profile.kind === 'led-matrix')
+    return { width: profile.width, height: profile.height };
   if (profile.fixedSize) return { ...profile.fixedSize };
   return custom ? { ...custom } : undefined;
 }

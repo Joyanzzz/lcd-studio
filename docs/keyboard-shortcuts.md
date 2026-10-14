@@ -6,6 +6,8 @@ diálogo abierto. La misma tabla aparece en Ayuda dentro de la aplicación.
 | Teclas | Acción |
 | ------ | ------ |
 | `P` `E` `L` `R` `C` `F` `T` `S` | Lápiz, borrador, línea, rectángulo, elipse, relleno, texto, selección |
+| `G` | Colocar patrón (solo LCD de caracteres) |
+| `Ctrl+E` | Exportar… |
 | `Ctrl+Z` / `Ctrl+Y` (o `Ctrl+Mayús+Z`) | Deshacer / rehacer |
 | `Ctrl+S` | Guardar (web: descargar copia) |
 | `Ctrl+Mayús+S` | Guardar como (escritorio) |
@@ -14,7 +16,7 @@ diálogo abierto. La misma tabla aparece en Ayuda dentro de la aplicación.
 | `Ctrl+A` | Seleccionar todo |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copiar, cortar, pegar la selección (sin contenido interno, `Ctrl+V` pega una imagen) |
 | `Supr` / `Retroceso` | Borrar la selección |
-| `Esc` | Quitar la selección o cancelar la vista previa de imagen |
+| `Esc` | Cerrar el aviso del límite de caracteres; si no hay aviso, cancelar la vista previa de imagen o quitar la selección |
 | `,` / `.` | Fotograma anterior / siguiente |
 | `Espacio` | Reproducir / detener |
 | `O` | Papel cebolla |
@@ -39,6 +41,12 @@ diálogo abierto. La misma tabla aparece en Ayuda dentro de la aplicación.
 | ------ | ------ |
 | `←` / `→`, `Inicio`, `Fin` | Seleccionar fotograma |
 | `Alt+←` / `Alt+→` | Mover el fotograma seleccionado |
+
+## Menús
+
+Con el foco en la barra de menús: `←`/`→` entre menús, `↓`/`Intro`/`Espacio`
+para abrir, `↑`/`↓`, `Inicio` y `Fin` dentro del menú, `Intro` para activar y
+`Esc` para cerrar y volver al título. `Tab` cierra el menú.
 
 ## Paneles
 

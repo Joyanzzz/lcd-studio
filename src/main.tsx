@@ -24,6 +24,7 @@ import { es } from './ui/i18n/es.ts';
 import { I18nProvider, type Locale } from './ui/i18n/index.tsx';
 import { registerServiceWorker } from './ui/pwa.ts';
 import { EditorStore } from './ui/state/editor-store.ts';
+import { LimitNotice } from './ui/state/limit-notice.ts';
 import { ToastStore } from './ui/state/toasts.ts';
 import { ExportWorkerClient } from './workers/export-client.ts';
 import { ImageWorkerClient } from './workers/image-client.ts';
@@ -126,6 +127,7 @@ async function boot(): Promise<void> {
   const services: AppServices = {
     store,
     toasts,
+    limitNotice: new LimitNotice(),
     platform,
     autosave,
     recovery,
