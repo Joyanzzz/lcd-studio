@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Instalador Windows x64
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --release
+        working-directory: src-tauri
+      - run: npm run tauri:build
+      - name: Sumas SHA-256
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe"
+          $lines = foreach ($f in $files) { "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), $f.Name }
+          $lines | Set-Content -Encoding ascii "src-tauri/target/release/bundle/nsis/SHA256SUMS.txt"
+          Get-Content "src-tauri/target/release/bundle/nsis/SHA256SUMS.txt"
+      - name: Compilación web
+        shell: pwsh
+        run: |
+          npm run build
+          Compress-Archive -Path dist/* -DestinationPath "lcd-studio-web-${{ github.ref_name }}.zip"
+          (Get-FileHash "lcd-studio-web-${{ github.ref_name }}.zip" -Algorithm SHA256).Hash.ToLower() + "  lcd-studio-web-${{ github.ref_name }}.zip" | Add-Content -Encoding ascii "src-tauri/target/release/bundle/nsis/SHA256SUMS.txt"
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+            lcd-studio-web-${{ github.ref_name }}.zip

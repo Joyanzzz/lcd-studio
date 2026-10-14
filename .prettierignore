@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+src-tauri/target
+src-tauri/gen
+test-results
+playwright-report
+tests/fixtures
+.tools
+build
+package-lock.json
+*.md

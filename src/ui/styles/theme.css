@@ -1,0 +1,132 @@
+/* Tokens del tema clásico Windows 2000: claro y oscuro. */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --face: #d4d0c8;
+  --hi: #ffffff;
+  --lite: #e9e6e0;
+  --shadow: #808080;
+  --dark: #404040;
+  --text: #000000;
+  --muted: #4a4a4a;
+  --field: #ffffff;
+  --field-text: #000000;
+  --work: #5d6e83;
+  --title-a: #0a246a;
+  --title-b: #a6caf0;
+  --title-text: #ffffff;
+  --title-inactive-a: #6b6b6b;
+  --title-inactive-b: #b5b5b5;
+  --select: #0a246a;
+  --select-text: #ffffff;
+  --tip: #ffffe1;
+  --tab: #c9c5bc;
+  --ok: #00561a;
+  --bad: #b00000;
+  --warn: #7a4300;
+  --focus: #000000;
+  --focus-ring: #0a5bd8;
+
+  /* Colores de los iconos */
+  --px-k: #000000;
+  --px-w: #ffffff;
+  --px-l: #c0c0c0;
+  --px-g: #808080;
+  --px-b: #1f4fb4;
+  --px-B: #9cc2f4;
+  --px-y: #f0c020;
+  --px-Y: #fff4a8;
+  --px-r: #c42020;
+  --px-G: #169a2a;
+  --px-p: #f29ab2;
+  --px-n: #e2b97a;
+  --px-D: #1d2a0c;
+  --px-L: #b6cf5a;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --face: #34363b;
+  --hi: #5d6068;
+  --lite: #44474d;
+  --shadow: #1f2024;
+  --dark: #0a0b0d;
+  --text: #ececec;
+  --muted: #b8bcc4;
+  --field: #1c1d20;
+  --field-text: #f0f0f0;
+  --work: #202125;
+  --title-a: #1f3768;
+  --title-b: #4d6ea8;
+  --title-text: #ffffff;
+  --title-inactive-a: #3a3c42;
+  --title-inactive-b: #55585f;
+  --select: #3b66b5;
+  --select-text: #ffffff;
+  --tip: #3d3b2a;
+  --tab: #2b2d31;
+  --ok: #6ee082;
+  --bad: #ff8080;
+  --warn: #ffc15e;
+  --focus: #ffffff;
+  --focus-ring: #7fb2ff;
+
+  --px-k: #e2e2e2;
+  --px-w: #f6f6f6;
+  --px-l: #9a9ea6;
+  --px-g: #a8acb3;
+  --px-b: #7fa8ff;
+  --px-B: #3d5a8a;
+  --px-y: #f0c020;
+  --px-Y: #8a7a2a;
+  --px-r: #ff6060;
+  --px-G: #4cd068;
+  --px-p: #f29ab2;
+  --px-n: #c49a5a;
+  --px-D: #1d2a0c;
+  --px-L: #b6cf5a;
+}
+
+.px-k {
+  fill: var(--px-k);
+}
+.px-w {
+  fill: var(--px-w);
+}
+.px-l {
+  fill: var(--px-l);
+}
+.px-g {
+  fill: var(--px-g);
+}
+.px-b {
+  fill: var(--px-b);
+}
+.px-B {
+  fill: var(--px-B);
+}
+.px-y {
+  fill: var(--px-y);
+}
+.px-Y {
+  fill: var(--px-Y);
+}
+.px-r {
+  fill: var(--px-r);
+}
+.px-G {
+  fill: var(--px-G);
+}
+.px-p {
+  fill: var(--px-p);
+}
+.px-n {
+  fill: var(--px-n);
+}
+.px-D {
+  fill: var(--px-D);
+}
+.px-L {
+  fill: var(--px-L);
+}
