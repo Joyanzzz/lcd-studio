@@ -58,7 +58,7 @@ as a PWA that works offline, and as a desktop app for Windows 10/11 x64.
 - **Web / PWA**: planned at `https://lcd.joyanz.site` (not deployed yet).
   Once loaded, it can be installed from the browser and keeps working
   offline.
-- **Windows**: download `LCD Studio_1.1.0-beta.1_x64-setup.exe` from the
+- **Windows**: download `LCD.Studio_1.1.0-beta.1_x64-setup.exe` from the
   [GitHub releases page](https://github.com/Joyanzzz/lcd-studio/releases) and check its SHA-256
   against `SHA256SUMS.txt`. The installer is **not code-signed**, so Windows
   SmartScreen may warn about an unknown publisher. It installs for the

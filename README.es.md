@@ -63,7 +63,7 @@ de escritorio para Windows 10/11 x64.
 - **Web / PWA**: prevista en `https://lcd.joyanz.site` (todavía sin
   desplegar). Tras la primera carga se puede instalar desde el navegador y
   sigue funcionando sin conexión.
-- **Windows**: descarga `LCD Studio_1.1.0-beta.1_x64-setup.exe` de la
+- **Windows**: descarga `LCD.Studio_1.1.0-beta.1_x64-setup.exe` de la
   [página de versiones de GitHub](https://github.com/Joyanzzz/lcd-studio/releases) y
   comprueba su SHA-256 con `SHA256SUMS.txt`. El instalador **no está
   firmado**, así que Windows SmartScreen puede avisar de un editor

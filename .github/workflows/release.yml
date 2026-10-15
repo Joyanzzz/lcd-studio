@@ -34,6 +34,9 @@ jobs:
       - name: Sumas SHA-256
         shell: pwsh
         run: |
+          # GitHub sustituye los espacios de los nombres de archivo por puntos al
+          # subirlos: se renombra antes para que SHA256SUMS.txt use el nombre real.
+          Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Rename-Item -NewName { $_.Name -replace ' ', '.' }
           $files = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe"
           $lines = foreach ($f in $files) { "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), $f.Name }
           $lines | Set-Content -Encoding ascii "src-tauri/target/release/bundle/nsis/SHA256SUMS.txt"

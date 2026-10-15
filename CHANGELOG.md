@@ -3,6 +3,14 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y versionado semántico.
 
+## [Sin publicar]
+
+### Corregido
+- El workflow de publicación renombra el instalador (punto en lugar de
+  espacio) antes de calcular `SHA256SUMS.txt`, para que coincida con el
+  nombre que muestra GitHub. En 1.1.0-beta.1 se corrigió a mano el
+  `SHA256SUMS.txt` publicado (mismos hashes).
+
 ## [1.1.0-beta.1] - 2026-10-14
 
 Primera versión pública, en beta. Ninguna exportación se ha probado todavía

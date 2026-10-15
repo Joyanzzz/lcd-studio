@@ -79,7 +79,8 @@ git push origin v1.1.0-beta.1
 El workflow **Release** compila en Windows y crea un **borrador**
 marcado como pre-release (por el guion de la etiqueta) con:
 
-- `LCD Studio_1.1.0-beta.1_x64-setup.exe`;
+- `LCD.Studio_1.1.0-beta.1_x64-setup.exe` (el workflow cambia el espacio por un
+  punto, como haría GitHub al subirlo);
 - `lcd-studio-web-v1.1.0-beta.1.zip` (la carpeta `dist/` de la web);
 - `SHA256SUMS.txt` con la suma de ambos.
 
@@ -87,7 +88,7 @@ Antes de publicar el borrador:
 
 1. Descarga los tres archivos y comprueba las sumas:
    ```powershell
-   Get-FileHash "LCD Studio_1.1.0-beta.1_x64-setup.exe" -Algorithm SHA256
+   Get-FileHash "LCD.Studio_1.1.0-beta.1_x64-setup.exe" -Algorithm SHA256
    ```
 2. Instala el `.exe` en un Windows de prueba y repite la comprobación manual
    de [desktop-build.md](desktop-build.md#comprobación-manual-del-instalador).
