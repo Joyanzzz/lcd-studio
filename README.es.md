@@ -123,9 +123,9 @@ necesita la versión web (Tauri aplica la suya). Ejecuta de nuevo
 - **Mapa ROM A00** es experimental: se transcribió de la hoja de datos y no
   se ha comparado con un módulo real; los módulos con ROM A02 muestran otros
   caracteres.
-- **Firefox**: las pruebas end-to-end están configuradas para Firefox y se
-  ejecutan en CI, pero no se han ejecutado en el equipo de desarrollo (su
-  política de seguridad bloquea el navegador de pruebas).
+- **Firefox**: las pruebas end-to-end pasan en GitHub Actions (Firefox sin
+  interfaz en Linux); no se han ejecutado en un Firefox de escritorio en
+  Windows.
 - **Instalador de escritorio**: sin firmar; no hay actualizador automático.
 
 ## Informar de un problema

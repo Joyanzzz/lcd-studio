@@ -124,8 +124,10 @@ matriz `e2e`). En el equipo de desarrollo **no arrancan**: Windows rechaza
 ejecutar `firefox.exe` desde la carpeta de navegadores de Playwright
 (`browserType.launch: spawn UNKNOWN`, comprobado el 2026-10-14), lo que
 apunta a una política de control de aplicaciones del equipo. No se ha
-eludido. Hasta que la CI se ejecute en GitHub, Firefox cuenta como **no
-probado**.
+eludido. En GitHub Actions sí se ejecutan: la primera ejecución detectó un
+error real (sondeo de `eval` de Zod bloqueado por la CSP, ya corregido) y la
+ejecución 38677671477 sobre el commit `4a556c1` pasó con 92 pruebas
+correctas y 2 omitidas (Firefox sin interfaz en Linux).
 
 ## Comprobaciones manuales (1.1.0-beta.1)
 

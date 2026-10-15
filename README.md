@@ -117,9 +117,8 @@ deploying the web version or running the end-to-end tests.
 - **ROM map A00** is experimental: it was transcribed from the datasheet and
   not checked against a real module; modules with ROM A02 show other
   characters.
-- **Firefox**: the end-to-end tests are configured for Firefox and run in CI,
-  but they have not been run on the development machine (its security
-  policy blocks the Firefox test browser).
+- **Firefox**: the end-to-end tests pass in GitHub Actions (headless Firefox
+  on Linux); they have not been run on a Windows desktop Firefox.
 - **Desktop installer**: unsigned; there is no automatic updater.
 
 ## Reporting a problem
