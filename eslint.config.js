@@ -73,6 +73,24 @@ export default tseslint.config(
     rules: { 'react-hooks/rules-of-hooks': 'off' },
   },
   {
+    // Zod solo se usa configurado para la CSP (sin sondeo de `new Function`).
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/core/zod.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'zod',
+              message: 'Importa `z` desde src/core/zod.ts (configurado para la CSP).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['src/pwa/sw-template.js'],
     languageOptions: { globals: { ...globals.serviceworker, __ASSETS__: 'readonly' } },
   },

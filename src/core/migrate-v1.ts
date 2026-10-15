@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod.ts';
 import { getProfile } from '../device-profiles/index.ts';
 import { CUSTOM_PALETTE_ID, normalizeHexColor, type Appearance } from './appearance.ts';
 import { defaultDevice } from './device.ts';

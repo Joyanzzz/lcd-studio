@@ -66,6 +66,10 @@ Windows no está firmado.
   solo se ofrece con conexión I²C o sin conexión definida.
 
 ### Corregido
+- Zod sondeaba `new Function` al cargar y la CSP (sin `unsafe-eval`) lo
+  bloqueaba; Firefox lo mostraba como error de consola. Zod se usa ahora en
+  modo `jitless` desde `src/core/zod.ts`, y la prueba de carga detecta
+  cualquier infracción de la CSP en todos los navegadores.
 - La prueba del aviso del límite dependía del tiempo real en WebKit
   (fallaba de forma intermitente); el plazo exacto de 5 s sigue cubierto por
   pruebas unitarias.

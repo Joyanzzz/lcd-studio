@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod.ts';
 import {
   getProfile,
   MAX7219_BRIGHTNESS_MAX,

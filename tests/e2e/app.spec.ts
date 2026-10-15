@@ -18,6 +18,13 @@ test.describe('aplicación', () => {
       if (m.type() === 'error') errors.push(m.text());
     });
     page.on('pageerror', (e) => errors.push(e.message));
+    // Cualquier intento bloqueado por la CSP, aunque el código lo capture
+    // (Firefox lo muestra en la consola; Chromium y WebKit, solo como evento).
+    await page.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', (e) => {
+        console.error(`CSP: ${e.violatedDirective} ${e.blockedURI}`);
+      });
+    });
     await app.open();
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute(
       'content',
