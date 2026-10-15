@@ -3,7 +3,11 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y versionado semántico.
 
-## [Sin publicar]
+## [1.1.0-beta.1] - 2026-10-14
+
+Primera versión pública, en beta. Ninguna exportación se ha probado todavía
+en hardware real (ver `docs/hardware-validation.md`); el instalador de
+Windows no está firmado.
 
 ### Añadido
 - Límite de 8 caracteres propios aplicado a todas las operaciones (trazo,
@@ -41,6 +45,17 @@ y versionado semántico.
   el más parecido, una letra de la ROM elegida o un espacio, con vista previa
   y como una sola edición deshacible.
 
+- Aviso antes de sobrescribir en escritorio un archivo de un formato anterior
+  (v1 o v2), con la opción de guardar una copia; un proyecto migrado desde v2
+  queda marcado como pendiente de guardar.
+- Licencia MIT a nombre de Johann Pérez, con los avisos de terceros
+  conservados; metadatos de autor y repositorio
+  (https://github.com/Joyanzzz/lcd-studio).
+- Documentación en inglés (`README.md`) y español (`README.es.md`), tabla de
+  soporte por exportador, procedimientos de prueba física para HD44780,
+  SSD1306 y MAX7219, despliegue en `lcd.joyanz.site` y procedimiento de
+  publicación (`docs/release.md`).
+
 ### Cambiado
 - Formato de proyecto v3 (bloque `device`); los v2 y v1 se abren y migran.
   Un archivo v3 no se abre con la versión 1.0.0.
@@ -50,14 +65,26 @@ y versionado semántico.
 - El exportador XC8 usa el bus de la conexión configurada; el boceto SSD1306
   solo se ofrece con conexión I²C o sin conexión definida.
 
+### Corregido
+- La prueba del aviso del límite dependía del tiempo real en WebKit
+  (fallaba de forma intermitente); el plazo exacto de 5 s sigue cubierto por
+  pruebas unitarias.
+
+### Seguridad
+- `npm run tauri:build` elimina del ejecutable las rutas locales de quien
+  compila (carpeta personal y del repositorio) con `--remap-path-prefix`.
+- El workflow de publicación limita el permiso de escritura al único job que
+  lo necesita y comprueba que la etiqueta coincide con la versión.
+
 ### Eliminado
 - Pestañas Exportar y Proyecto del panel lateral (sustituidas por menús y
   ventanas), barra de botones Nuevo/Abrir/Guardar (en el menú Archivo) y la
   navegación por secciones excluyentes en móvil.
 
-## [1.0.0] - 2026-10-13
+## [1.0.0] - 2026-10-13 (interna, no publicada)
 
-Reconstrucción completa a partir del prototipo de un solo archivo.
+Reconstrucción completa a partir del prototipo de un solo archivo. Esta
+versión no se distribuyó; sus proyectos (formato v2) se abren y migran.
 
 ### Añadido
 - Editor de píxeles: lápiz, borrador, línea, rectángulo, elipse (contorno o

@@ -1,5 +1,10 @@
 # Contribuir
 
+Para informar de un error, abre una incidencia con la plantilla del
+repositorio. No hace falta (ni conviene) incluir datos personales; adjunta un
+`.lcdstudio.json` solo si quieres compartirlo. Las vulnerabilidades se
+informan por la vía privada de `SECURITY.md`.
+
 ## Preparación
 
 ```bash
@@ -41,5 +46,13 @@ Si tocas exportadores Arduino, ejecuta también
   de cambiar dependencias npm de producción o crates de Rust, ejecuta
   `npm run notices` para regenerar los avisos de licencia (CI comprueba que
   estén al día).
+- **README en dos idiomas**: `README.md` (inglés) y `README.es.md`
+  (español) deben decir lo mismo. Si cambias información compartida
+  (funciones, instalación, uso, limitaciones, estado beta, comandos o
+  enlaces), actualiza **ambos** en el mismo cambio y comprueba que los
+  enlaces relativos funcionan desde los dos.
+- **Versión**: `package.json`, `src-tauri/tauri.conf.json`,
+  `src-tauri/Cargo.toml` y el `CHANGELOG.md` deben coincidir (ver
+  `docs/release.md`).
 - **Commits**: mensajes convencionales (`feat:`, `fix:`, `docs:`, `test:`,
   `chore:`), en español o inglés.

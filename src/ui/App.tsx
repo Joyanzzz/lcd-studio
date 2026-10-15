@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { newProject, openProject, saveProject } from './app-actions.ts';
+import {
+  newProject,
+  openProject,
+  saveProject,
+  setLegacySaveConfirm,
+  type LegacySaveChoice,
+} from './app-actions.ts';
 import { useEditor, usePreferences, useServices } from './app-context.tsx';
 import { CommandsProvider, type DialogId } from './commands.tsx';
 import { CgramFitDialog } from './components/CgramFitDialog.tsx';
 import { ConvertDialog } from './components/ConvertDialog.tsx';
 import { DiagnosticsDialog } from './components/DiagnosticsDialog.tsx';
-import { HelpDialog, SettingsDialog, UnsavedDialog } from './components/Dialogs.tsx';
+import {
+  HelpDialog,
+  LegacySaveDialog,
+  SettingsDialog,
+  UnsavedDialog,
+} from './components/Dialogs.tsx';
 import { NewProjectWizard } from './components/ProjectSetup.tsx';
 import { ExportDialog } from './components/ExportDialog.tsx';
 import { MenuBar, type Menu } from './components/MenuBar.tsx';
@@ -66,6 +77,10 @@ export function App() {
   const [unsaved, setUnsaved] = useState<((choice: 'save' | 'discard' | 'cancel') => void) | null>(
     null,
   );
+  const [legacySave, setLegacySave] = useState<{
+    version: 1 | 2;
+    resolve: (choice: LegacySaveChoice) => void;
+  } | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [waitingSave, setWaitingSave] = useState(false);
   const openRef = useRef<() => void>(() => undefined);
@@ -98,6 +113,23 @@ export function App() {
     [store, toasts, limitNotice],
   );
   useEffect(() => () => limitNotice.dismiss(), [limitNotice]);
+
+  // Confirmación antes de sobrescribir un archivo de un formato anterior.
+  useEffect(() => {
+    setLegacySaveConfirm(
+      (version) =>
+        new Promise<LegacySaveChoice>((resolve) => {
+          setLegacySave({
+            version,
+            resolve: (choice) => {
+              setLegacySave(null);
+              resolve(choice);
+            },
+          });
+        }),
+    );
+    return () => setLegacySaveConfirm(null);
+  }, []);
 
   /** Pregunta qué hacer con los cambios sin guardar en archivo. */
   const confirmUnsaved = useCallback(
@@ -472,6 +504,12 @@ export function App() {
         <DiagnosticsDialog open={dialog === 'diagnostics'} onClose={() => setDialog(null)} />
         <SettingsDialog open={dialog === 'settings'} onClose={() => setDialog(null)} />
         <HelpDialog open={dialog === 'help'} onClose={() => setDialog(null)} />
+        <LegacySaveDialog
+          version={legacySave?.version ?? null}
+          onCopy={() => legacySave?.resolve('copy')}
+          onOverwrite={() => legacySave?.resolve('overwrite')}
+          onCancel={() => legacySave?.resolve('cancel')}
+        />
         <UnsavedDialog
           open={unsaved !== null}
           onSave={() => unsaved?.('save')}

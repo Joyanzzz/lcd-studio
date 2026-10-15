@@ -115,3 +115,32 @@ ARDUINO_CLI=arduino-cli node scripts/arduino-check.ts
 
 Requiere `arduino-cli` con el núcleo `arduino:avr` y las bibliotecas
 indicadas en `docs/hardware-validation.md`. CI lo ejecuta en cada cambio.
+
+## Firefox en el equipo de desarrollo
+
+Las pruebas E2E de Firefox están configuradas (`firefox-es`, `firefox-en` en
+`playwright.config.ts`) y la CI las ejecuta (`.github/workflows/ci.yml`,
+matriz `e2e`). En el equipo de desarrollo **no arrancan**: Windows rechaza
+ejecutar `firefox.exe` desde la carpeta de navegadores de Playwright
+(`browserType.launch: spawn UNKNOWN`, comprobado el 2026-10-14), lo que
+apunta a una política de control de aplicaciones del equipo. No se ha
+eludido. Hasta que la CI se ejecute en GitHub, Firefox cuenta como **no
+probado**.
+
+## Comprobaciones manuales (1.1.0-beta.1)
+
+Hechas el 2026-10-14 sobre el árbol final sin confirmar (ver
+`docs/release.md` para repetirlas al publicar):
+
+- **Actualización de la PWA**: se sirvió la compilación de la versión
+  anterior (1.0.0, commit `a24aef0`) en un origen local, se dibujó sin
+  guardar y se publicó la 1.1.0-beta.1 en el mismo origen. Apareció el aviso
+  de versión nueva sin recargar sola; al aceptarlo, la página pasó a
+  1.1.0-beta.1, quedó solo la caché nueva, no se pidió ningún recurso de la
+  versión anterior (ni hubo 404) y el dibujo se recuperó.
+- **Instalador de Windows**: ver
+  [desktop-build.md](desktop-build.md#comprobación-manual-del-instalador).
+- **Proyectos v2 reales**: `tests/fixtures/projects/v2-*.lcdstudio.json` los
+  escribió el serializador de la versión 1.0.0 (commit `d8cb46d`), no el
+  formato actual; `tests/unit/core/v2-fixtures.test.ts` comprueba que se
+  migran sin pérdida y que guardar y reabrir los conserva.

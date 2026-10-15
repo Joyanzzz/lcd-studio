@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { serializeProject } from '../../src/core/project-format.ts';
 import { ledDiagnosticFrames } from '../../src/core/led-diagnostics.ts';
@@ -14,6 +15,10 @@ import { getProfile, targetsFor } from '../../src/device-profiles/index.ts';
 import { exportersFor, runExport } from '../../src/exporters/index.ts';
 import { createZip } from '../../src/core/zip.ts';
 import { downloadBytes, expect, test } from './fixtures.ts';
+
+/** La aplicación muestra la versión de package.json en el código generado. */
+const APP_VERSION = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string })
+  .version;
 
 /**
  * Exporta cada formato desde la interfaz y compara los bytes descargados con
@@ -103,7 +108,7 @@ for (const [label, build] of [
       await app.exportTo(exporter.id, content);
       const expected = runExport(
         exporter,
-        { project, profile, currentFrame: 0, appVersion: '1.0.0' },
+        { project, profile, currentFrame: 0, appVersion: APP_VERSION },
         { frames: content === 'animation' ? 'all' : 'current' },
       );
       expect(expected.files, exporter.id).toBeDefined();
@@ -182,4 +187,34 @@ test('advierte y bloquea antes de una exportación incompatible', async ({ page,
     page.getByTestId('export-diagnostics').locator('[data-severity="error"]').first(),
   ).toBeVisible();
   await expect(page.getByTestId('export-save')).toBeDisabled();
+});
+
+test('recuerda las últimas opciones válidas y exportar no cuenta como guardar el proyecto', async ({
+  page,
+  app,
+  t,
+}) => {
+  await app.open();
+  await app.clickPixel(1, 1);
+  await expect(page).toHaveTitle(/\*/);
+  await app.menu('export', 'export');
+  await page.getByTestId('export-content-frame').check();
+  await page.getByTestId('export-next').click();
+  await page.getByTestId('export-format-png').check();
+  await page.getByTestId('export-next').click();
+  await page.getByLabel(t('export.option.scale'), { exact: true }).fill('3');
+  await page.getByTestId('export-next').click();
+  const download = page.waitForEvent('download');
+  await page.getByTestId('export-save').click();
+  expect((await download).suggestedFilename()).toMatch(/\.png$/);
+  await app.closeDialog();
+  // Exportar genera un archivo aparte: el proyecto sigue sin guardar.
+  await expect(page).toHaveTitle(/\*/);
+
+  await app.menu('export', 'export');
+  await expect(page.getByTestId('export-content-frame')).toBeChecked();
+  await page.getByTestId('export-next').click();
+  await expect(page.getByTestId('export-format-png')).toBeChecked();
+  await page.getByTestId('export-next').click();
+  await expect(page.getByLabel(t('export.option.scale'), { exact: true })).toHaveValue('3');
 });

@@ -1,6 +1,11 @@
 import { writeFile } from 'node:fs/promises';
 import { serializeProject } from '../../src/core/project-format.ts';
-import { createProject, replaceFramePixels } from '../../src/core/project.ts';
+import {
+  createFrame,
+  createProject,
+  insertFrames,
+  replaceFramePixels,
+} from '../../src/core/project.ts';
 import { downloadBytes, expect, test } from './fixtures.ts';
 
 test.describe('edición', () => {
@@ -100,10 +105,12 @@ test.describe('edición', () => {
     await expect(notice).toContainText(t('limit.title'));
     expect(await undo.getAttribute('title')).toBe(before);
     await expect(page.getByTestId('cgram-status')).toContainText('8/8');
-    // Sigue visible hasta 5 s después del último intento.
-    await page.clock.runFor(4500);
+    // Sigue visible tras el último intento y se oculta pasados 5 s. El reloj
+    // falso sigue avanzando en tiempo real mientras se comprueba lo anterior,
+    // así que se deja margen; el plazo exacto lo cubre limit-notice.test.ts.
+    await page.clock.runFor(3000);
     await expect(notice).toBeVisible();
-    await page.clock.runFor(700);
+    await page.clock.runFor(2500);
     await expect(notice).toBeHidden();
     // Escape lo cierra sin tocar el dibujo.
     await app.clickPixel(8 * 5 + 3, 1);
@@ -195,6 +202,7 @@ test.describe('edición', () => {
     const px = new Uint8Array(80 * 16);
     for (let c = 0; c < 9; c++) px[Math.floor(c / 5) * 80 + c * 5 + (c % 5)] = 1;
     p = replaceFramePixels(p, 0, px);
+    p = insertFrames(p, 1, [createFrame(px.slice(), 200)]);
     const path = info.outputPath('ajuste.lcdstudio.json');
     await writeFile(path, serializeProject(p, { name: 'LCD Studio', version: 'e2e' }));
     await app.open();
@@ -205,6 +213,25 @@ test.describe('edición', () => {
       .click();
     const dialog = page.getByTestId('cgram-fit-dialog');
     await expect(dialog).toBeVisible();
+    // Advierte de la pérdida y muestra antes y después.
+    await expect(dialog).toContainText(t('dialog.cgramFit.intro'));
+    await expect(dialog.getByRole('img')).toHaveCount(2);
+    // Cancelar no cambia nada.
+    const undo = page.getByRole('button', { name: t('toolbar.undo') });
+    const undoBefore = await undo.getAttribute('title');
+    await dialog.getByRole('button', { name: t('dialog.cancel') }).click();
+    await expect(dialog).toBeHidden();
+    expect(await undo.getAttribute('title')).toBe(undoBefore);
+    await expect(page.getByTestId('repair-banner')).toBeVisible();
+    // Alcance explícito: los dos fotogramas, en una sola operación.
+    await page
+      .getByTestId('repair-banner')
+      .getByRole('button', { name: t('draw.cgramFit') })
+      .click();
+    await page.getByTestId('cgram-fit-all').check();
+    await expect(page.getByTestId('cgram-fit-summary')).toContainText(
+      t('dialog.cgramFit.summary', { frames: 2, cells: 2, pixels: 2 }),
+    );
     await page.getByTestId('cgram-fit-apply').click();
     await expect(dialog).toBeHidden();
     await expect(page.getByTestId('repair-banner')).toBeHidden();

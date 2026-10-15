@@ -12,6 +12,32 @@ animación correcta.
 
 Entorno de compilación: `arduino-cli` 1.5.1, núcleo `arduino:avr` 1.8.8.
 
+## Resumen por exportador (1.1.0-beta.1)
+
+«Implementado» = genera archivos con pruebas unitarias de referencia.
+«Compilado» = `arduino-cli` compila el boceto generado (solo exportadores de
+código Arduino). «Probado físicamente» = registrado abajo con montaje real.
+
+| Exportador | Pantallas | Implementado | Compilado | Probado físicamente |
+| ---------- | --------- | ------------ | --------- | ------------------- |
+| Arduino · LiquidCrystal (`arduino-liquidcrystal`) | HD44780 16×2, 20×2, 16×4, 20×4 | Sí | Sí: Uno, Mega 2560 (16×2, 16×4, 20×4) | No |
+| Arduino · LiquidCrystal I2C (`arduino-liquidcrystal-i2c`) | HD44780 + PCF8574 | Sí | Sí: Uno, Nano | No |
+| Caracteres 5×8 (`custom-chars`) | HD44780 | Sí | Sí: cabecera en Uno | No |
+| Adafruit_GFX (`adafruit-gfx`) | gráficas | Sí | Sí: boceto SSD1306 en Uno y Mega; cabecera en Uno | No |
+| U8g2 / XBM (`u8g2-xbm`) | gráficas | Sí | Sí: boceto SSD1306 en Uno; cabecera en Uno | No |
+| Páginas verticales (`vertical-pages`) | gráficas (SSD1306, PCD8544, KS0108) | Sí | Sí: cabecera en Uno | No |
+| Arduino · matriz MAX7219 (`arduino-max7219`) | MAX7219 8×8 | Sí | Sí: Uno, Nano, Mega 2560 | No |
+| Registros MAX7219 (`max7219-registers`) | MAX7219 8×8 | Sí | Sí: cabecera en Uno | No |
+| PIC XC8 (`pic-xc8`, **experimental**) | HD44780 | Sí | **No** (XC8 no instalado) | No |
+| Binario, ASCII | todas | Sí | No aplica | No aplica |
+| PNG, hoja de sprites, GIF | todas | Sí | No aplica | No aplica |
+
+Ninguna combinación se ha probado en hardware. Que compile solo garantiza que
+el código es válido para esa placa y que la memoria estimada cubre la real en
+los casos medidos (tabla «Memoria estimada frente a la real»); no garantiza
+que la pantalla muestre la imagen correcta ni que la estimación cubra
+cualquier otro proyecto, placa o versión de biblioteca.
+
 ## Matriz
 
 Leyenda: ✅ hecho y correcto · ❌ hecho con fallos · — no realizado.
@@ -76,6 +102,40 @@ compilador no lo cuenta, la estimación sí.
 
 La tabla completa (36 casos, 0 fallos el 2026-10-14) se genera en
 `build/arduino-report.json`.
+
+## LCD de caracteres HD44780: procedimiento de prueba física
+
+Material: Arduino Uno, módulo HD44780 (16×2, 20×2, 16×4 o 20×4; con o sin
+adaptador PCF8574), potenciómetro de contraste si el módulo no lo trae.
+
+1. Crea un proyecto con el tamaño real del módulo, su conexión (4 bits o
+   I²C) y el destino Arduino correspondiente.
+2. **Filas (DDRAM)**: dibuja en cada fila un patrón distinto en la primera y
+   la última columna (por ejemplo, una flecha) y un carácter de la ROM
+   escrito con la herramienta de texto si eliges el mapa ROM. Exporta un
+   fotograma y cárgalo: cada patrón debe aparecer en su fila y columna. En
+   16×4 y 20×4, un error típico es que las filas 3 y 4 salgan desplazadas.
+3. **CGRAM**: usa 8 patrones distintos; después añade un segundo fotograma
+   que cambie 4 de ellos y otro que los devuelva. Con 20 ms y 1 000 ms por
+   fotograma, comprueba que no quedan restos del patrón anterior y anota si
+   se aprecia parpadeo al recargar.
+4. **Modos**: repite con bucle, ida y vuelta y una vez. En «una vez», la
+   última imagen debe quedar fija y la placa no debe reiniciarse.
+5. **I²C**: si el módulo no responde, prueba las direcciones 0x27 y 0x3F y
+   anota cuál funcionó y el fabricante del adaptador.
+
+## OLED SSD1306: procedimiento de prueba física
+
+Material: Arduino Uno, módulo SSD1306 I²C 128×64 o 128×32.
+
+1. Crea un proyecto SSD1306 con conexión I²C y destino Adafruit_GFX o U8g2.
+2. Dibuja una flecha en la esquina superior izquierda y un punto en la
+   inferior derecha. Exporta y carga el boceto: la flecha debe verse arriba a
+   la izquierda y sin espejado (comprueba ambos exportadores, porque usan
+   orden de bits distinto).
+3. Exporta una animación de varios fotogramas y comprueba duraciones y modo
+   de reproducción con un cronómetro.
+4. Si la pantalla no se enciende, prueba las direcciones 0x3C y 0x3D.
 
 ## Matriz de LEDs MAX7219: procedimiento de prueba física
 

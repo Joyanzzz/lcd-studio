@@ -87,6 +87,14 @@ test.describe('diseño', () => {
     await expect(status).toContainText('4 × 4');
     await page.setViewportSize({ width: 740, height: 360 });
     await expect(items.nth(1)).toHaveAttribute('aria-selected', 'true');
+    // Tras girar desde vertical, dibujo y animación siguen visibles a la vez.
+    await expect(app.canvas).toBeVisible();
+    await expect(page.getByTestId('frame-strip')).toBeVisible();
+    const strip = (await page.getByTestId('frame-strip').boundingBox())!;
+    const wrap = (await page.locator('.canvas-wrap').boundingBox())!;
+    expect(wrap.y + wrap.height).toBeLessThanOrEqual(strip.y + 1);
+    expect(wrap.height).toBeGreaterThanOrEqual(60);
+    expect(strip.y + strip.height).toBeLessThanOrEqual(360);
     await page.setViewportSize({ width: 360, height: 740 });
     await expect(status).toContainText('4 × 4');
     await page.getByTestId('play').click();

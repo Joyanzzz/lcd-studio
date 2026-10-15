@@ -490,6 +490,11 @@ export const en: Readonly<Record<MessageKey, string>> = {
   'dialog.close': 'Close',
   'dialog.ok': 'OK',
   'dialog.cancel': 'Cancel',
+  'dialog.legacySave.title': 'File from an earlier version',
+  'dialog.legacySave.message':
+    'This project was opened from a format v{version} file. Saving over it converts it to format v{current}, and the LCD Studio version that created it will no longer be able to open it. Saving a copy is recommended.',
+  'dialog.legacySave.copy': 'Save a copy…',
+  'dialog.legacySave.overwrite': 'Overwrite',
   'dialog.cgramFit.title': 'Fit to 8 custom characters',
   'dialog.cgramFit.intro':
     'An HD44780 can only show 8 different custom drawings at a time. This tool keeps the 8 that best represent the frame and replaces each extra cell with the closest drawing, a letter from the chosen ROM, or a space. It changes the project pixels, can be undone, and does not change the exported code.',
@@ -575,6 +580,9 @@ export const en: Readonly<Record<MessageKey, string>> = {
     'Pixel editor for HD44780 character LCDs and graphic or OLED displays. Import images, convert them to 1 bit, animate them and export code or images.',
   'dialog.help.shortcuts': 'Keyboard shortcuts',
   'dialog.help.version': 'Version {version}',
+  'dialog.help.notices': 'Third-party license notices',
+  'dialog.help.noticesDesktop':
+    'The LCD Studio license (LICENSE.txt) and the third-party license notices (THIRD_PARTY_NOTICES.txt) are in the installation folder.',
   'shortcut.tools': 'Pencil, eraser, line, rectangle, ellipse, fill, text and selection',
   'shortcut.undoRedo': 'Undo / redo',
   'shortcut.frames': 'Previous / next frame',

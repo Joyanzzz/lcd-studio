@@ -22,6 +22,65 @@ Prueba local idéntica a producción (con las cabeceras de seguridad):
 npm run preview
 ```
 
+## Despliegue en `lcd.joyanz.site` (beta)
+
+Estado: **sin desplegar**. El dominio lo servirá un equipo en casa del
+publicador; faltan sus datos (sistema operativo, software que sirve la web o
+hace de proxy, forma de desplegar archivos, HTTPS, DNS y acceso) para dar una
+configuración concreta. Los ejemplos de
+nginx y Caddy de abajo son orientativos; no se han probado contra ese
+dominio.
+
+Lo que exige la arquitectura real, sea cual sea el servidor:
+
+- **Raíz del dominio**: `dist/` se sirve tal cual en
+  `https://lcd.joyanz.site/`. Las rutas son relativas, así que también
+  funcionaría en una subcarpeta.
+- **HTTPS** obligatorio (el service worker no se registra sin él). Si el
+  certificado o el dominio cambian, los usuarios conservan sus proyectos solo
+  si el **origen** (esquema + dominio + puerto) es el mismo: el autoguardado
+  vive en el IndexedDB de ese origen.
+- **Una sola página**: no hay rutas de cliente; basta con servir
+  `index.html` en `/`. Recargar en `/` debe devolver `index.html`.
+- **Caché**: `index.html`, `/` y `sw.js` con `Cache-Control: no-cache`
+  (si `sw.js` se cachea, los usuarios tardan en recibir versiones nuevas);
+  `assets/*` con caché larga e inmutable. `manifest.webmanifest`, `icons/*`
+  y `THIRD_PARTY_NOTICES.txt` sin caché larga (no llevan hash).
+- **Tipos MIME**: `.js` → `text/javascript`, `.webmanifest` →
+  `application/manifest+json`, `.txt` → `text/plain; charset=utf-8`.
+- **Cabeceras**: las de la sección «Cabeceras». Si el servicio no permite
+  cabeceras, la CSP de `<meta>` de `index.html` sigue aplicándose, pero se
+  pierden `frame-ancestors` (incrustación en otros sitios), HSTS y las demás.
+  Deja constancia de ello si ocurre.
+- **Despliegue atómico**: sube primero `assets/` y después `index.html` y
+  `sw.js`, o publica la carpeta completa de una vez. No borres los
+  `assets/` de la versión anterior hasta que la nueva esté publicada: una
+  pestaña abierta con la versión anterior puede necesitarlos (normalmente los
+  sirve su caché, pero no conviene depender de ello).
+
+Comprobación después de desplegar (en una ventana privada y luego en una
+normal):
+
+1. `https://lcd.joyanz.site/` carga sin errores en la consola y, en
+   Herramientas de desarrollo → Red, todas las peticiones son al mismo
+   dominio.
+2. Las cabeceras de `/`, `/sw.js` y un archivo de `/assets/` coinciden con
+   lo anterior (por ejemplo, `curl -sI https://lcd.joyanz.site/sw.js`).
+3. Ayuda → Ayuda y atajos de teclado muestra la versión esperada.
+4. Dibuja algo, recarga: el trabajo se recupera. Desconecta la red y recarga:
+   la aplicación sigue funcionando.
+5. Crea, guarda (descarga) y vuelve a abrir un proyecto; exporta un PNG y un
+   boceto Arduino.
+
+Volver a la versión anterior: vuelve a publicar la carpeta `dist/` anterior
+completa (guarda una copia de cada versión publicada, o el
+`lcd-studio-web-vX.zip` de la versión en GitHub). Su `sw.js` es distinto del
+publicado, así que los navegadores lo tratan como una actualización: verán el
+aviso «Nueva versión disponible» y la aplicación no recargará sola. Los
+proyectos guardados en el navegador se conservan si ambas versiones usan el
+mismo formato de proyecto (v3 en 1.1.0-beta.1); una versión anterior no abre
+un formato más nuevo.
+
 ## Requisitos del servidor
 
 - **HTTPS** (obligatorio para el service worker, salvo en `localhost`).

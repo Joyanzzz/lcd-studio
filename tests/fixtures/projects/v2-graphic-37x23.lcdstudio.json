@@ -1,0 +1,30 @@
+{
+  "format": "lcd-studio-project",
+  "schemaVersion": 2,
+  "generator": {
+    "name": "LCD Studio",
+    "version": "1.0.0"
+  },
+  "name": "Logo libre",
+  "profile": "graphic-custom",
+  "width": 37,
+  "height": 23,
+  "appearance": {
+    "palette": "oled"
+  },
+  "romCharset": "none",
+  "playback": {
+    "loop": "once"
+  },
+  "pixelEncoding": "bitpack-lsb-rowmajor",
+  "frames": [
+    {
+      "durationMs": 200,
+      "pixels": "AQAAAFAAAAAAEQAAABAEAAAAAQEAABBAAAAAARAAABAABAAAAQABABAAQAAAAQAQABAAAAQAAQAAARAAAEAAAQAAEBAAAAAEAQAAABEAAABAAQAAABAAAAAABQAAABABAAAAQQAAABAQAAA="
+    },
+    {
+      "durationMs": 333,
+      "pixels": "/v///6//////7v///+/7/////v7//++//////u///+//+////v/+/+//v////v/v/+////v//v///u///7///v//7+/////7/v///+7///+//v///+//////+v///+/+////vv///+/v/wc="
+    }
+  ]
+}

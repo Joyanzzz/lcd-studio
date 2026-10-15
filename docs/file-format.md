@@ -17,6 +17,12 @@ Los archivos v1 y v2 se abren completos (nunca se descarta contenido) y se
 guardan como v3. Un archivo v3 **no** se abre con LCD Studio 1.0.0 (que solo
 conoce v2): la aplicación antigua lo rechaza con «versión más reciente».
 
+Por eso, al abrir un v1 o un v2 el proyecto queda marcado como pendiente de
+guardar y, en escritorio, «Guardar» (que reescribiría ese mismo archivo)
+pregunta antes: **Guardar una copia…** (recomendado, deja el original
+intacto), **Sobrescribir** o **Cancelar**. En la web, guardar siempre descarga
+un archivo nuevo, así que el original nunca se sobrescribe.
+
 ## Ejemplo
 
 ```json

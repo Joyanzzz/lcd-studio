@@ -200,6 +200,7 @@ describe('formato v3', () => {
     if (!result.ok) expect(result.errors[0]!.code).toBe('project.tooManyFrames');
   });
 
+  // Prueba de carga (60 MB de píxeles): con cobertura o en máquinas lentas supera los 5 s por omisión.
   it('acepta exactamente 240 fotogramas de 512×512', () => {
     const p = createProject({ name: 'max', profileId: 'graphic-custom', width: 512, height: 512 });
     const doc = v2Doc(p);
@@ -210,7 +211,7 @@ describe('formato v3', () => {
     const result = parseProjectFile(bytes);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.frames).toHaveLength(240);
-  });
+  }, 30_000);
 
   it('rechaza archivos vacíos, enormes, no UTF-8 y no JSON', () => {
     expect(parseProjectFile(new Uint8Array(0))).toMatchObject({ ok: false });

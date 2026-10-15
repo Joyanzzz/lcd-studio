@@ -5,14 +5,20 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
     name: Instalador Windows x64
     runs-on: windows-2022
+    permissions:
+      # Solo este job crea el borrador de la versión en GitHub.
+      contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: La etiqueta coincide con la versión de package.json
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "${{ github.ref_name }}"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -41,6 +47,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
+          # Etiquetas con guion (v1.1.0-beta.1) se publican como pre-release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/nsis/SHA256SUMS.txt

@@ -107,3 +107,21 @@ test.describe('aplicación', () => {
     await expect(page.locator('dialog[open]')).toHaveCount(0);
   });
 });
+
+test('la ayuda enlaza los avisos de licencia de terceros, servidos con la aplicación', async ({
+  page,
+  app,
+  t,
+}) => {
+  await app.open();
+  await app.menu('help', 'help');
+  const link = page
+    .getByTestId('help-dialog')
+    .getByRole('link', { name: t('dialog.help.notices') });
+  await expect(link).toHaveAttribute('href', 'THIRD_PARTY_NOTICES.txt');
+  const response = await page.request.get(new URL('THIRD_PARTY_NOTICES.txt', page.url()).href);
+  expect(response.ok()).toBe(true);
+  const text = await response.text();
+  expect(text).toContain('npm react ');
+  expect(text).toContain('crates.io tauri ');
+});

@@ -1,7 +1,9 @@
 [package]
 name = "lcd-studio"
-version = "1.0.0"
-description = "Editor local de gráficos y animaciones para pantallas LCD y OLED"
+version = "1.1.0-beta.1"
+description = "Editor local de gráficos y animaciones para pantallas LCD, OLED y matrices de LEDs"
+authors = ["Johann Pérez"]
+repository = "https://github.com/Joyanzzz/lcd-studio"
 license = "MIT"
 edition = "2021"
 rust-version = "1.85"

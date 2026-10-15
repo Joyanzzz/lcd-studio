@@ -496,6 +496,11 @@ export const es = {
   'dialog.close': 'Cerrar',
   'dialog.ok': 'Aceptar',
   'dialog.cancel': 'Cancelar',
+  'dialog.legacySave.title': 'Archivo de una versión anterior',
+  'dialog.legacySave.message':
+    'Este proyecto se abrió desde un archivo en formato v{version}. Si lo guardas encima, se convertirá al formato v{current} y la versión de LCD Studio que lo creó ya no podrá abrirlo. Se recomienda guardar una copia.',
+  'dialog.legacySave.copy': 'Guardar una copia…',
+  'dialog.legacySave.overwrite': 'Sobrescribir',
   'dialog.cgramFit.title': 'Ajustar a 8 caracteres propios',
   'dialog.cgramFit.intro':
     'Un HD44780 solo puede mostrar 8 dibujos propios distintos a la vez. Esta herramienta conserva los 8 que mejor representan el fotograma y cambia cada celda sobrante por el dibujo más parecido, una letra de la ROM elegida o un espacio. Modifica los píxeles del proyecto, se puede deshacer y no cambia el código que se exporta.',
@@ -586,6 +591,9 @@ export const es = {
     'Editor de píxeles para LCD de caracteres HD44780 y pantallas gráficas u OLED. Importa imágenes, conviértelas a 1 bit, anímalas y exporta código o imágenes.',
   'dialog.help.shortcuts': 'Atajos de teclado',
   'dialog.help.version': 'Versión {version}',
+  'dialog.help.notices': 'Avisos de licencia de terceros',
+  'dialog.help.noticesDesktop':
+    'La licencia de LCD Studio (LICENSE.txt) y los avisos de licencia de terceros (THIRD_PARTY_NOTICES.txt) están en la carpeta de instalación.',
   'shortcut.tools': 'Lápiz, borrador, línea, rectángulo, elipse, relleno, texto y selección',
   'shortcut.undoRedo': 'Deshacer / rehacer',
   'shortcut.frames': 'Fotograma anterior / siguiente',

@@ -141,6 +141,11 @@ export interface EditorState {
   readonly redoLabel: string | undefined;
   /** Cambios desde la última apertura o guardado en archivo. */
   readonly fileDirty: boolean;
+  /**
+   * Versión del formato del archivo abierto si era anterior a la actual (1 o 2).
+   * Guardar encima lo convertiría a la versión actual: la interfaz avisa antes.
+   */
+  readonly legacyFormat: 1 | 2 | null;
   /** Aumenta con cada cambio del proyecto (para el autoguardado). */
   readonly revision: number;
 }
@@ -244,6 +249,7 @@ export class EditorStore {
       undoLabel: undefined,
       redoLabel: undefined,
       fileDirty: options.fileDirty ?? false,
+      legacyFormat: null,
       revision: 0,
     };
   }
@@ -344,7 +350,7 @@ export class EditorStore {
   // ---------- Proyecto ----------
 
   /** Sustituye el proyecto (nuevo, abierto o recuperado) y vacía el historial. */
-  loadProject(project: Project, fileDirty = false): void {
+  loadProject(project: Project, fileDirty = false, legacyFormat: 1 | 2 | null = null): void {
     this.stop();
     this.cancelStroke();
     this.history.clear();
@@ -355,6 +361,7 @@ export class EditorStore {
       preview: null,
       cursor: null,
       fileDirty,
+      legacyFormat,
       patternBrush: null,
       tool: CHARACTER_ONLY_TOOLS.includes(this.state.tool) ? 'pencil' : this.state.tool,
       revision: this.state.revision + 1,
@@ -363,8 +370,9 @@ export class EditorStore {
     this.emit({ type: 'limit', phase: 'cleared' });
   }
 
+  /** El proyecto se escribió en un archivo en el formato actual. */
   markFileSaved(): void {
-    this.set({ fileDirty: false });
+    this.set({ fileDirty: false, legacyFormat: null });
   }
 
   get currentFrame() {

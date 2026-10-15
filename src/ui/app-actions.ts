@@ -78,9 +78,13 @@ export async function openProject(services: AppServices, migratedName: string): 
     return false;
   }
   const project = result.value;
-  // Un proyecto migrado aún no está guardado en formato v2.
-  const migrated = result.warnings.some((w) => w.code === 'migration.fromV1');
-  services.store.loadProject(project, migrated);
+  // Un proyecto migrado aún no está guardado en el formato actual.
+  const legacy = result.warnings.some((w) => w.code === 'migration.fromV1')
+    ? 1
+    : result.warnings.some((w) => w.code === 'migration.fromV2')
+      ? 2
+      : null;
+  services.store.loadProject(project, legacy !== null, legacy);
   await services.platform.acceptOpenedProject();
   services.autosave.markDirty();
   services.toasts.push('success', 'toast.projectOpened', { name: project.name });
@@ -95,8 +99,27 @@ export async function openProject(services: AppServices, migratedName: string): 
   return true;
 }
 
+/** Respuesta del usuario antes de sobrescribir un archivo de formato anterior. */
+export type LegacySaveChoice = 'copy' | 'overwrite' | 'cancel';
+
+let confirmLegacySave: ((version: 1 | 2) => Promise<LegacySaveChoice>) | null = null;
+
+/** La interfaz registra aquí el diálogo que confirma la sobrescritura. */
+export function setLegacySaveConfirm(
+  confirm: ((version: 1 | 2) => Promise<LegacySaveChoice>) | null,
+): void {
+  confirmLegacySave = confirm;
+}
+
 export async function saveProject(services: AppServices, mode: SaveMode): Promise<boolean> {
-  const project = services.store.getState().project;
+  const { project, legacyFormat } = services.store.getState();
+  // En escritorio «Guardar» reescribe el archivo abierto: si era de un formato
+  // anterior, la versión que lo creó ya no podría abrirlo.
+  if (mode === 'save' && services.platform.kind === 'desktop' && legacyFormat !== null) {
+    const choice = confirmLegacySave ? await confirmLegacySave(legacyFormat) : 'copy';
+    if (choice === 'cancel') return false;
+    if (choice === 'copy') mode = 'saveAs';
+  }
   try {
     const bytes = await serialize(services, project);
     const saved = await services.platform.saveProject(

@@ -1,9 +1,18 @@
 {
   "name": "lcd-studio",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0-beta.1",
   "description": "Editor local de gráficos y animaciones para pantallas LCD de caracteres, gráficas y OLED.",
   "license": "MIT",
+  "author": "Johann Pérez",
+  "homepage": "https://github.com/Joyanzzz/lcd-studio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Joyanzzz/lcd-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Joyanzzz/lcd-studio/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -21,7 +30,7 @@
     "typecheck": "tsc -b --noEmit",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "node scripts/tauri-build.ts",
     "icons": "node scripts/generate-icons.ts",
     "audit:deps": "npm audit --omit=dev && node scripts/check-licenses.ts",
     "arduino:check": "node scripts/arduino-check.ts",

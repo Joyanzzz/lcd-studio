@@ -1,3 +1,4 @@
+import { SCHEMA_VERSION } from '../../core/project-format.ts';
 import { usePreferences, useServices } from '../app-context.tsx';
 import { LOCALES, useI18n, type Locale } from '../i18n/index.tsx';
 import type { ThemePreference } from '../../storage/preferences.ts';
@@ -81,7 +82,7 @@ const SHORTCUTS: readonly [readonly string[], string][] = [
 
 export function HelpDialog(props: { open: boolean; onClose: () => void }) {
   const { tk, t } = useI18n();
-  const { appVersion } = useServices();
+  const { appVersion, platform } = useServices();
   // Las teclas con nombre (prefijo @) se traducen; las combinaciones se muestran tal cual.
   const keyName = (k: string) => (k.startsWith('@') ? t(k.slice(1)) : k);
   return (
@@ -125,6 +126,53 @@ export function HelpDialog(props: { open: boolean; onClose: () => void }) {
       <p>{tk('shortcut.canvasKeys')}</p>
       <p className="hint">{tk('dialog.settings.privacy')}</p>
       <p className="hint">{tk('dialog.help.version', { version: appVersion })}</p>
+      <p className="hint">
+        {platform.kind === 'web' ? (
+          <a href="THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">
+            {tk('dialog.help.notices')}
+          </a>
+        ) : (
+          tk('dialog.help.noticesDesktop')
+        )}
+      </p>
+    </Dialog>
+  );
+}
+
+/** Antes de sobrescribir un archivo de un formato anterior (solo escritorio). */
+export function LegacySaveDialog(props: {
+  version: 1 | 2 | null;
+  onCopy: () => void;
+  onOverwrite: () => void;
+  onCancel: () => void;
+}) {
+  const { tk } = useI18n();
+  return (
+    <Dialog
+      open={props.version !== null}
+      title={tk('dialog.legacySave.title')}
+      onClose={props.onCancel}
+      testId="legacy-save-dialog"
+      actions={
+        <>
+          <button type="button" className="btn primary" onClick={props.onCopy}>
+            {tk('dialog.legacySave.copy')}
+          </button>
+          <button type="button" className="btn" onClick={props.onOverwrite}>
+            {tk('dialog.legacySave.overwrite')}
+          </button>
+          <button type="button" className="btn" onClick={props.onCancel}>
+            {tk('dialog.cancel')}
+          </button>
+        </>
+      }
+    >
+      <p>
+        {tk('dialog.legacySave.message', {
+          version: props.version ?? 0,
+          current: SCHEMA_VERSION,
+        })}
+      </p>
     </Dialog>
   );
 }

@@ -4,11 +4,12 @@
 
 | Versión | Soporte |
 | ------- | ------- |
-| 1.x     | Sí      |
+| 1.1.0-beta.x (última beta) | Sí |
+| 1.0.0 (interna, no publicada) | No |
 
 ## Informar de una vulnerabilidad
 
-No abras un *issue* público. Usa la función «Report a vulnerability»
+No abras un *issue* público. Usa la función [«Report a vulnerability»](https://github.com/Joyanzzz/lcd-studio/security/advisories/new)
 (avisos de seguridad privados) del repositorio en GitHub e incluye:
 
 - versión (web o escritorio) y sistema operativo;
